@@ -195,6 +195,7 @@ class SmallShell {
   void executeCommand(const char* cmd_line);
   void setPromptLine(const string new_prmp_line);
   void printPromptLine() const ;
+  void printSmashId() const ;
   // TODO: add extra methods as needed
 };
 
