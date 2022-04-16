@@ -1,10 +1,9 @@
-#include <unistd.h>
+#include "Commands.h"
 #include <iostream>
 #include <vector>
 #include <sstream>
 #include <sys/wait.h>
 #include <iomanip>
-#include "Commands.h"
 #include <time.h>
 #include <utime.h>
 
@@ -125,6 +124,14 @@ void ShowPidCommand::execute(){
   smash.printSmashId();
 }
 
+GetCurrDirCommand::GetCurrDirCommand(const char* cmd_line) : BuiltInCommand(cmd_line){}
+
+void GetCurrDirCommand::execute(){
+  char* current_dir = get_current_dir_name();
+  cout << current_dir << endl;
+  if(current_dir!=NULL)
+    free (current_dir);
+}
 
 
 
@@ -171,10 +178,10 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
     return new ShowPidCommand(cmd_line);
   }
 
-/*
   if (firstWord.compare("pwd") == 0) {
     return new GetCurrDirCommand(cmd_line);
   }
+  /*
   else if (firstWord.compare("showpid") == 0) {
     return new ShowPidCommand(cmd_line);
   }
