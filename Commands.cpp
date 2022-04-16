@@ -1,5 +1,4 @@
 #include <unistd.h>
-#include <string.h>
 #include <iostream>
 #include <vector>
 #include <sstream>
@@ -80,25 +79,83 @@ void _removeBackgroundSign(char* cmd_line) {
   cmd_line[str.find_last_not_of(WHITESPACE, idx) + 1] = 0;
 }
 
-// TODO: Add your implementation for classes in Commands.h 
+// TODO: Add your implementation for classes in Commands.h
 
-SmallShell::SmallShell() {
+
+////////////////////Comand Class start//////////////////////////////////////
+
+Command::Command(const char* cmd_line){
+  is_BG = _isBackgroundComamnd(cmd_line);
+  strcpy(this->cmd_line,cmd_line);
+  if(is_BG)
+    _removeBackgroundSign(this->cmd_line);
+  n_args = _parseCommandLine(this->cmd_line, args);
+}
+
+Command::~Command(){
+  for(int i = 0; i < n_args ; i++){
+    if( (args[i])!= NULL )
+      free(args[i]);
+  }
+}
+
+////////////////////Comand Class end//////////////////////////////////////
+
+
+
+///////////////////Build in commands start//////////////////////////
+BuiltInCommand::BuiltInCommand(const char* cmd_line) : Command(cmd_line){}
+
+ChPromptCommand::ChPromptCommand(const char* cmd_line) : BuiltInCommand(cmd_line){
+  if (n_args == 1)
+    new_prompt = DEFAULT_PROMPT;
+  else
+    new_prompt = args[1];
+}
+
+void ChPromptCommand::execute(){
+  SmallShell& smash = SmallShell::getInstance();
+  smash.setPromptLine(this->new_prompt);
+}
+
+
+
+
+///////////////////Build in commands end//////////////////////////
+
+
+
+///////////////////SmallShell start//////////////////////////
+
+SmallShell::SmallShell(){
 // TODO: add your implementation
 }
 
-SmallShell::~SmallShell() {
+SmallShell::~SmallShell(){
 // TODO: add your implementation
+}
+
+void SmallShell::setPromptLine(const string new_prmp_line){
+  this->prompt_line = new_prmp_line;
+}
+
+void SmallShell::printPromptLine() const{
+   cout << this->prompt_line << "> ";  //////TODO - remember maybe no space
 }
 
 /**
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 */
 Command * SmallShell::CreateCommand(const char* cmd_line) {
-	// For example:
-/*
   string cmd_s = _trim(string(cmd_line));
   string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
 
+  if(firstWord.compare("chprompt") == 0){
+    return new ChPromptCommand(cmd_line);
+  }
+
+
+/*
   if (firstWord.compare("pwd") == 0) {
     return new GetCurrDirCommand(cmd_line);
   }
@@ -115,9 +172,10 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 }
 
 void SmallShell::executeCommand(const char *cmd_line) {
-  // TODO: Add your implementation here
-  // for example:
-  // Command* cmd = CreateCommand(cmd_line);
-  // cmd->execute();
+  Command* cmd = CreateCommand(cmd_line);
+  if( cmd!=nullptr)
+    cmd->execute();
   // Please note that you must fork smash process for some commands (e.g., external commands....)
 }
+
+///////////////////SmallShell end//////////////////////////

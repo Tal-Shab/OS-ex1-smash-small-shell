@@ -5,16 +5,24 @@
 #include <ctime>
 #include <map>
 #include <unistd.h>
+#include <string.h>
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
+#define DEFAULT_PROMPT "smash"
 
 typedef unsigned int job_id;
 enum JOB_STATUS {FGROUND, BGROUND, STOPPED};
 
+using std::string; 
+
 class Command {
-// TODO: Add your data members
- public:
+protected:
+  char* args[COMMAND_MAX_ARGS];
+  int n_args;
+  bool is_BG;
+  char cmd_line[COMMAND_ARGS_MAX_LENGTH];
+public:
   Command(const char* cmd_line);
   virtual ~Command();
   virtual void execute() = 0;
@@ -162,14 +170,17 @@ class TouchCommand : public BuiltInCommand {
 
 class ChPromptCommand : public BuiltInCommand {
 public:
+    string new_prompt;
     ChPromptCommand(const char* cmd_line);
-
+    virtual ~ChPromptCommand() {}
+    void execute() override;
 };
 
 class SmallShell {
  private:
   // TODO: Add your data members
   SmallShell();
+  string prompt_line = DEFAULT_PROMPT;
  public:
   Command *CreateCommand(const char* cmd_line);
   SmallShell(SmallShell const&)      = delete; // disable copy ctor
@@ -182,6 +193,8 @@ class SmallShell {
   }
   ~SmallShell();
   void executeCommand(const char* cmd_line);
+  void setPromptLine(const string new_prmp_line);
+  void printPromptLine() const ;
   // TODO: add extra methods as needed
 };
 
