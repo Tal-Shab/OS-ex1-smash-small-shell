@@ -178,9 +178,9 @@ public:
 
 class SmallShell {
  private:
-  // TODO: Add your data members
   SmallShell();
   string prompt_line = DEFAULT_PROMPT;
+  pid_t smash_id;
  public:
   Command *CreateCommand(const char* cmd_line);
   SmallShell(SmallShell const&)      = delete; // disable copy ctor

@@ -128,7 +128,7 @@ void ChPromptCommand::execute(){
 ///////////////////SmallShell start//////////////////////////
 
 SmallShell::SmallShell(){
-// TODO: add your implementation
+  this->smash_id = getpid();
 }
 
 SmallShell::~SmallShell(){
