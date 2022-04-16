@@ -2,9 +2,15 @@
 #define SMASH_COMMAND_H_
 
 #include <vector>
+#include <ctime>
+#include <map>
+#include <unistd.h>
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
+
+typedef unsigned int job_id;
+enum JOB_STATUS {FGROUND, BGROUND, STOPPED};
 
 class Command {
 // TODO: Add your data members
@@ -49,7 +55,8 @@ class RedirectionCommand : public Command {
 };
 
 class ChangeDirCommand : public BuiltInCommand {
-// TODO: Add your data members public:
+// TODO: Add your data members
+public:
   ChangeDirCommand(const char* cmd_line, char** plastPwd);
   virtual ~ChangeDirCommand() {}
   void execute() override;
@@ -71,7 +78,8 @@ class ShowPidCommand : public BuiltInCommand {
 
 class JobsList;
 class QuitCommand : public BuiltInCommand {
-// TODO: Add your data members public:
+// TODO: Add your data members
+public:
   QuitCommand(const char* cmd_line, JobsList* jobs);
   virtual ~QuitCommand() {}
   void execute() override;
@@ -84,7 +92,13 @@ class JobsList {
  public:
   class JobEntry {
    // TODO: Add your data members
+   pid_t pid;
+   job_id id;
+   time_t timestamp;
+   JOB_STATUS status;
   };
+
+  std::map<job_id, JobEntry> jobs_list;
  // TODO: Add your data members
  public:
   JobsList();
@@ -146,6 +160,11 @@ class TouchCommand : public BuiltInCommand {
   void execute() override;
 };
 
+class ChPromptCommand : public BuiltInCommand {
+public:
+    ChPromptCommand(const char* cmd_line);
+
+};
 
 class SmallShell {
  private:
