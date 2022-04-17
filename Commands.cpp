@@ -6,7 +6,7 @@
 #include <iomanip>
 #include <time.h>
 #include <utime.h>
-#include <limits.h>
+#include <climits>
 
 using namespace std;
 
