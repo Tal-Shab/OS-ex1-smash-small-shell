@@ -86,6 +86,8 @@ void _removeBackgroundSign(char* cmd_line) {
 Command::Command(const char* cmd_line){
   is_BG = _isBackgroundComamnd(cmd_line);
   strcpy(this->cmd_line,cmd_line);
+  strcpy(this->raw_cmd_line, cmd_line);
+
   if(is_BG)
     _removeBackgroundSign(this->cmd_line);
   n_args = _parseCommandLine(this->cmd_line, args);
