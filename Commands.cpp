@@ -249,7 +249,7 @@ void SmallShell::executeCommand(const char *cmd_line) {
         if (cmd != nullptr)
             cmd->execute();
     } catch (SmashCmdError& err) {
-        cout << err.what() << endl;
+        cerr << err.what() << endl;
     } catch (SmashSysFailure& err) {
         perror(err.what());
     }
