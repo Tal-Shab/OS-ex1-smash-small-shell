@@ -178,31 +178,37 @@ void SmallShell::setCurrDir(const string new_dir) {
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 */
 Command * SmallShell::CreateCommand(const char* cmd_line) {
-  string cmd_s = _trim(string(cmd_line));
-  string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
+    string cmd_s = _trim(string(cmd_line));
+    string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
 
-  if(firstWord.compare("chprompt") == 0){
-    return new ChPromptCommand(cmd_line);
-  }
+    if (firstWord == "chprompt") {
+        return new ChPromptCommand(cmd_line);
+    }
 
-  if(firstWord.compare("showpid") == 0){
+    if (firstWord == "showpid") {
+        return new ShowPidCommand(cmd_line);
+    }
+
+    if (firstWord == "pwd") {
+        return new GetCurrDirCommand(cmd_line);
+    }
+
+    if (firstWord == "cd") {
+        return new ChangeDirCommand(cmd_line, this->prev_dir);
+    }
+    /*
+    else if (firstWord.compare("showpid") == 0) {
     return new ShowPidCommand(cmd_line);
-  }
-
-  if (firstWord.compare("pwd") == 0) {
-    return new GetCurrDirCommand(cmd_line);
-  }
-  /*
-  else if (firstWord.compare("showpid") == 0) {
-    return new ShowPidCommand(cmd_line);
-  }
-  else if ...
-  .....
-  else {
+    }
+    else if ...
+    .....
+    else {
     return new ExternalCommand(cmd_line);
-  }
-  */
-  return nullptr;
+    }
+    */
+
+
+    return nullptr;
 }
 
 void SmallShell::executeCommand(const char *cmd_line) {
