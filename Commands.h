@@ -13,7 +13,7 @@
 #define ERROR_PREFIX "smash error: "
 
 typedef unsigned int job_id;
-enum JOB_STATUS {FGROUND, BGROUND, STOPPED};
+enum JOB_STATUS {UNFINISHED, STOPPED};
 
 using std::string;
 
