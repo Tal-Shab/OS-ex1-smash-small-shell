@@ -41,7 +41,7 @@ protected:
   bool is_BG;
   char cmd_line[COMMAND_ARGS_MAX_LENGTH];
 public:
-  Command(const char* cmd_line);
+  explicit Command(const char* cmd_line);
   virtual ~Command();
   virtual void execute() = 0;
   //virtual void prepare();
@@ -51,13 +51,13 @@ public:
 
 class BuiltInCommand : public Command {
  public:
-  BuiltInCommand(const char* cmd_line);
+  explicit BuiltInCommand(const char* cmd_line);
   virtual ~BuiltInCommand() {}
 };
 
 class ExternalCommand : public Command {
  public:
-  ExternalCommand(const char* cmd_line);
+  explicit ExternalCommand(const char* cmd_line);
   virtual ~ExternalCommand() {}
   void execute() override;
 };
@@ -116,7 +116,7 @@ public:
 
 
 class JobsList {
- public:
+public:
   class JobEntry {
    // TODO: Add your data members
    pid_t pid;
@@ -125,7 +125,6 @@ class JobsList {
    JOB_STATUS status;
   };
 
-  std::map<job_id, JobEntry> jobs_list;
  // TODO: Add your data members
  public:
   JobsList();
@@ -139,6 +138,8 @@ class JobsList {
   JobEntry * getLastJob(int* lastJobId);
   JobEntry *getLastStoppedJob(int *jobId);
   // TODO: Add extra methods or modify exisitng ones as needed
+private:
+    std::map<job_id, JobEntry> jobs_list;
 };
 
 class JobsCommand : public BuiltInCommand {
@@ -202,6 +203,9 @@ class SmallShell {
   pid_t pid;
   string curr_dir;
   string prev_dir;
+  pid_t curr_fg;
+
+  std::map<pid_t, job_id> procToJobId;
  public:
   Command *CreateCommand(const char* cmd_line);
   SmallShell(SmallShell const&)      = delete; // disable copy ctor
@@ -219,6 +223,7 @@ class SmallShell {
   void setCurrDir();
   void printPromptLine() const ;
   void printSmashId() const ;
+  void setCurrFg(pid_t fg_pid=0);
   // TODO: add extra methods as needed
 };
 

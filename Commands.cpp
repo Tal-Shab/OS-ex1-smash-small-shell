@@ -173,6 +173,7 @@ void ChangeDirCommand::execute() {
 
 SmallShell::SmallShell(){
   this->pid = getpid();
+  this->curr_fg = this->pid;
 
   this->curr_dir = string();
   this->setCurrDir();
@@ -210,23 +211,19 @@ void SmallShell::setCurrDir() {
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 */
 Command * SmallShell::CreateCommand(const char* cmd_line) {
-    string cmd_s = _trim(string(cmd_line));
-    string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
+    string cmd_s = _trim((cmd_line));
+    string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" &\n"));
 
     if (firstWord == "chprompt") {
         return new ChPromptCommand(cmd_line);
-    }
-
-    if (firstWord == "showpid") {
+    } else if (firstWord == "showpid") {
         return new ShowPidCommand(cmd_line);
-    }
-
-    if (firstWord == "pwd") {
+    } else if (firstWord == "pwd") {
         return new GetCurrDirCommand(cmd_line);
-    }
-
-    if (firstWord == "cd") {
+    } else if (firstWord == "cd") {
         return new ChangeDirCommand(cmd_line, this->prev_dir);
+    } else {
+        return new ExternalCommand(cmd_line);
     }
     /*
     else if (firstWord.compare("showpid") == 0) {
@@ -238,6 +235,7 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
     return new ExternalCommand(cmd_line);
     }
     */
+
 
 
     return nullptr;
@@ -256,7 +254,13 @@ void SmallShell::executeCommand(const char *cmd_line) {
   // Please note that you must fork smash process for some commands (e.g., external commands....)
 }
 
-///////////////////SmallShell end//////////////////////////
+void SmallShell::setCurrFg(pid_t fg_pid) {
+    if (fg_pid == 0) {
+        this->curr_fg = this->pid;
+    } else {
+        this->curr_fg = fg_pid;
+    }
+}
 
 SmashError::SmashError(const string& msg) : msg(string(ERROR_PREFIX) + msg) {}
 
@@ -264,4 +268,38 @@ const char* SmashError::what() const noexcept {
     return msg.c_str();
 }
 
+///////////////////SmallShell end//////////////////////////
 
+///////////////////External Commands start//////////////////////////
+
+ExternalCommand::ExternalCommand(const char *cmd_line) : Command(cmd_line){}
+
+void ExternalCommand::execute() {
+    pid_t fork_pid = fork();
+    if (fork_pid == -1) {
+        throw SmashSysFailure("fork failed");
+    }
+
+    if (fork_pid == 0) {
+        // child process
+        char* argv[] = {"/bin/bash", "-c", this->cmd_line, nullptr};
+        execv(argv[0], argv);
+        /*
+         * Panic mode
+         * https://stackoverflow.com/questions/3703013/what-can-cause-exec-to-fail-what-happens-next
+         */
+        perror("execv failed");
+        exit(EXIT_FAILURE);
+    } else {
+        // parent process (smash)
+        SmallShell& smash = SmallShell::getInstance();
+
+        smash.setCurrFg(fork_pid);
+        waitpid(fork_pid, nullptr, 0);
+        smash.setCurrFg();
+    }
+}
+
+
+
+///////////////////External Commands end//////////////////////////
