@@ -159,7 +159,7 @@ void ChangeDirCommand::execute() {
     }
 
     if (chdir(dest_dir.c_str()) == 0) {
-        smash.setCurrDir(dest_dir);
+        smash.setCurrDir();
     } else {
         throw SmashSysFailure("chdir failed");
     }
@@ -174,10 +174,8 @@ void ChangeDirCommand::execute() {
 SmallShell::SmallShell(){
   this->pid = getpid();
 
-  char buff[PATH_MAX];
-  getcwd(buff, PATH_MAX);
-  this->curr_dir = string(buff);
-  this->prev_dir = string();
+  this->curr_dir = string();
+  this->setCurrDir();
 }
 
 SmallShell::~SmallShell(){
@@ -200,9 +198,12 @@ string SmallShell::getCurrDir() {
     return this->curr_dir;
 }
 
-void SmallShell::setCurrDir(const string new_dir) {
+void SmallShell::setCurrDir() {
+    char buff[PATH_MAX];
+    getcwd(buff, PATH_MAX);
+
     this->prev_dir = curr_dir;
-    this->curr_dir = new_dir;
+    this->curr_dir = string(buff);
 }
 
 /**

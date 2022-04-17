@@ -216,7 +216,7 @@ class SmallShell {
   void executeCommand(const char* cmd_line);
   void setPromptLine(const string new_prmp_line);
   string getCurrDir();
-  void setCurrDir(const string new_dir);
+  void setCurrDir();
   void printPromptLine() const ;
   void printSmashId() const ;
   // TODO: add extra methods as needed
