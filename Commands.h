@@ -10,11 +10,29 @@
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
 #define DEFAULT_PROMPT "smash"
+#define ERROR_PREFIX "smash error: "
 
 typedef unsigned int job_id;
 enum JOB_STATUS {FGROUND, BGROUND, STOPPED};
 
-using std::string; 
+using std::string;
+
+class SmashError : public std::exception {
+    const string msg;
+public:
+    const char* what() const noexcept override;
+    explicit SmashError(const string& msg);
+};
+
+class SmashCmdError : public SmashError {
+public:
+    explicit SmashCmdError(const string& msg) : SmashError(msg) {}
+};
+
+class SmashSysFailure : public SmashError {
+public:
+    explicit SmashSysFailure(const string& msg) : SmashError(msg) {}
+};
 
 class Command {
 protected:

@@ -212,10 +212,24 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 }
 
 void SmallShell::executeCommand(const char *cmd_line) {
-  Command* cmd = CreateCommand(cmd_line);
-  if(cmd != nullptr)
-    cmd->execute();
+    try {
+        Command *cmd = CreateCommand(cmd_line);
+        if (cmd != nullptr)
+            cmd->execute();
+    } catch (SmashCmdError& err) {
+        cout << err.what() << endl;
+    } catch (SmashSysFailure& err) {
+        perror(err.what());
+    }
   // Please note that you must fork smash process for some commands (e.g., external commands....)
 }
 
 ///////////////////SmallShell end//////////////////////////
+
+SmashError::SmashError(const string& msg) : msg(string(ERROR_PREFIX) + msg) {}
+
+const char* SmashError::what() const noexcept {
+    return msg.c_str();
+}
+
+
