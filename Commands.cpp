@@ -6,7 +6,7 @@
 #include <iomanip>
 #include <time.h>
 #include <utime.h>
-
+#include <limits.h>
 
 using namespace std;
 
@@ -124,13 +124,11 @@ void ShowPidCommand::execute(){
   smash.printSmashId();
 }
 
-GetCurrDirCommand::GetCurrDirCommand(const char* cmd_line) : BuiltInCommand(cmd_line){}
+GetCurrDirCommand::GetCurrDirCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {}
 
 void GetCurrDirCommand::execute(){
-  char* current_dir = get_current_dir_name();
-  cout << current_dir << endl;
-  if(current_dir != nullptr)
-    free (current_dir);
+    SmallShell& smash = SmallShell::getInstance();
+    cout << smash.getCurrDir() << endl;
 }
 
 
@@ -144,6 +142,11 @@ void GetCurrDirCommand::execute(){
 
 SmallShell::SmallShell(){
   this->pid = getpid();
+
+  char buff[PATH_MAX];
+  getcwd(buff, PATH_MAX);
+  this->curr_dir = string(buff);
+  this->prev_dir = string();
 }
 
 SmallShell::~SmallShell(){
@@ -162,6 +165,14 @@ void SmallShell::printSmashId() const{
    cout << "smash pid is " << this->pid << endl ;
 }
 
+string SmallShell::getCurrDir() {
+    return this->curr_dir;
+}
+
+void SmallShell::setCurrDir(const string new_dir) {
+    this->prev_dir = curr_dir;
+    this->curr_dir = new_dir;
+}
 
 /**
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
