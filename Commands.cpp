@@ -264,6 +264,15 @@ void SmallShell::setCurrFg(pid_t fg_pid) {
     }
 }
 
+void SmallShell::removeFinishedJobs() {
+    pid_t done_pid;
+    job_id jid;
+    while ((done_pid = wait(nullptr)) != -1) {
+        jid = this->procToJobId.find(done_pid)->second;
+
+    }
+}
+
 SmashError::SmashError(const string& msg) : msg(string(ERROR_PREFIX) + msg) {}
 
 const char* SmashError::what() const noexcept {
@@ -297,12 +306,19 @@ void ExternalCommand::execute() {
         // parent process (smash)
         SmallShell& smash = SmallShell::getInstance();
 
-        smash.setCurrFg(fork_pid);
-        waitpid(fork_pid, nullptr, 0);
-        smash.setCurrFg();
+        if (is_BG) {
+
+        } else {
+            smash.setCurrFg(fork_pid);
+            waitpid(fork_pid, nullptr, 0);
+            smash.setCurrFg();
+        }
     }
 }
 
 
 
 ///////////////////External Commands end//////////////////////////
+void JobsList::addJob(pid_t pid, Command *cmd, bool isStopped) {
+
+}

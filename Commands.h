@@ -129,12 +129,11 @@ public:
 
  // TODO: Add your data members
  public:
-  JobsList();
-  ~JobsList();
-  void addJob(Command* cmd, bool isStopped = false);
+  JobsList() = default;
+  ~JobsList() = default;
+  void addJob(pid_t pid, Command* cmd, bool isStopped = false);
   void printJobsList();
   void killAllJobs();
-  void removeFinishedJobs();
   JobEntry * getJobById(int jobId);
   void removeJobById(int jobId);
   JobEntry * getLastJob(int* lastJobId);
@@ -227,6 +226,8 @@ class SmallShell {
   void printSmashId() const ;
   void setCurrFg(pid_t fg_pid=0);
   // TODO: add extra methods as needed
+  void removeFinishedJobs();
+
 };
 
 #endif //SMASH_COMMAND_H_
