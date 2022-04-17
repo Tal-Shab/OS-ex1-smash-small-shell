@@ -266,9 +266,10 @@ void SmallShell::setCurrFg(pid_t fg_pid) {
 void SmallShell::removeFinishedJobs() {
     pid_t done_pid;
     job_id jid;
-    while ((done_pid = wait(nullptr)) != -1) {
-        jid = this->procToJobId.find(done_pid)->second;
-
+    while ((done_pid = waitpid(-1, nullptr, WNOHANG)) != -1) {
+        jid = this->proc_to_job_id.find(done_pid)->second;
+        this->jobs_list.removeJobById(jid);
+        this->proc_to_job_id.erase(done_pid);
     }
 }
 
