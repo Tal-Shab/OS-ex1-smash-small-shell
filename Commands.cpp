@@ -48,7 +48,7 @@ int _parseCommandLine(const char* cmd_line, char** args) {
     args[i] = (char*)malloc(s.length()+1);
     memset(args[i], 0, s.length()+1);
     strcpy(args[i], s.c_str());
-    args[++i] = NULL;
+    args[++i] = nullptr;
   }
   return i;
 
@@ -92,8 +92,8 @@ Command::Command(const char* cmd_line){
 }
 
 Command::~Command(){
-  for(int i = 0; i < n_args ; i++){
-    if( (args[i])!= NULL )
+  for(int i = 0; i < n_args; i++){
+    if(args[i] != nullptr)
       free(args[i]);
   }
 }
@@ -129,7 +129,7 @@ GetCurrDirCommand::GetCurrDirCommand(const char* cmd_line) : BuiltInCommand(cmd_
 void GetCurrDirCommand::execute(){
   char* current_dir = get_current_dir_name();
   cout << current_dir << endl;
-  if(current_dir!=NULL)
+  if(current_dir != nullptr)
     free (current_dir);
 }
 
@@ -143,7 +143,7 @@ void GetCurrDirCommand::execute(){
 ///////////////////SmallShell start//////////////////////////
 
 SmallShell::SmallShell(){
-  this->smash_id = getpid();
+  this->pid = getpid();
 }
 
 SmallShell::~SmallShell(){
@@ -151,15 +151,15 @@ SmallShell::~SmallShell(){
 }
 
 void SmallShell::setPromptLine(const string new_prmp_line){
-  this->prompt_line = new_prmp_line;
+  this->prompt = new_prmp_line;
 }
 
 void SmallShell::printPromptLine() const{
-   cout << this->prompt_line << "> ";  //////TODO - remember maybe no space
+   cout << this->prompt << "> ";  //////TODO - remember maybe no space
 }
 
 void SmallShell::printSmashId() const{
-   cout << "smash pid is " << this->smash_id << endl ;
+   cout << "smash pid is " << this->pid << endl ;
 }
 
 
@@ -196,7 +196,7 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 
 void SmallShell::executeCommand(const char *cmd_line) {
   Command* cmd = CreateCommand(cmd_line);
-  if(cmd!=nullptr)
+  if(cmd != nullptr)
     cmd->execute();
   // Please note that you must fork smash process for some commands (e.g., external commands....)
 }

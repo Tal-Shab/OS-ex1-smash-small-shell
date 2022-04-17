@@ -179,8 +179,10 @@ public:
 class SmallShell {
  private:
   SmallShell();
-  string prompt_line = DEFAULT_PROMPT;
-  pid_t smash_id;
+  string prompt = DEFAULT_PROMPT;
+  pid_t pid;
+  string curr_dir;
+  string prev_dir;
  public:
   Command *CreateCommand(const char* cmd_line);
   SmallShell(SmallShell const&)      = delete; // disable copy ctor
