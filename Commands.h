@@ -5,7 +5,8 @@
 #include <ctime>
 #include <map>
 #include <unistd.h>
-#include <string.h>
+#include <cstring>
+#include <ctime>
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
