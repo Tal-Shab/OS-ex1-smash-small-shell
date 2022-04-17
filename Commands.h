@@ -82,8 +82,9 @@ class RedirectionCommand : public Command {
 
 class ChangeDirCommand : public BuiltInCommand {
 // TODO: Add your data members
+    string dest_dir;
 public:
-  ChangeDirCommand(const char* cmd_line, char** plastPwd);
+  ChangeDirCommand(const char* cmd_line, string prev_dir);
   virtual ~ChangeDirCommand() {}
   void execute() override;
 };
@@ -214,6 +215,8 @@ class SmallShell {
   ~SmallShell();
   void executeCommand(const char* cmd_line);
   void setPromptLine(const string new_prmp_line);
+  string getCurrDir();
+  void setCurrDir(const string new_dir);
   void printPromptLine() const ;
   void printSmashId() const ;
   // TODO: add extra methods as needed

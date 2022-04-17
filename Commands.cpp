@@ -131,8 +131,39 @@ void GetCurrDirCommand::execute(){
     cout << smash.getCurrDir() << endl;
 }
 
+ChangeDirCommand::ChangeDirCommand(const char *cmd_line, string const prev_dir) : BuiltInCommand(cmd_line), dest_dir() {
+    if (n_args > 2) {
+        throw SmashCmdError("cd: too many arguments");
+    }
 
+    if (n_args == 2) {
+        this->dest_dir = args[1];
+    }
 
+    if (dest_dir == "-") {
+        if (prev_dir.empty()) {
+            throw SmashCmdError("cd: OLDPWD not set");
+        } else {
+            dest_dir = prev_dir;
+        }
+    }
+}
+
+void ChangeDirCommand::execute() {
+    SmallShell& smash = SmallShell::getInstance();
+
+    // currently ignoring no empty dir argument, should check on Piazza once an instructor answers.
+    // bash for example changes into the /home dir when no args are passed, so we might want to do that?
+    if (dest_dir.empty()) {
+        return;
+    }
+
+    if (chdir(dest_dir.c_str()) == 0) {
+        smash.setCurrDir(dest_dir);
+    } else {
+        throw SmashSysFailure("chdir failed");
+    }
+}
 
 ///////////////////Built in commands end//////////////////////////
 
