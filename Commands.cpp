@@ -319,6 +319,25 @@ void ExternalCommand::execute() {
 
 
 ///////////////////External Commands end//////////////////////////
-void JobsList::addJob(pid_t pid, Command *cmd, bool isStopped) {
 
+///////////////////External Commands start//////////////////////////
+void JobsList::addJob(pid_t pid, Command *cmd, bool isStopped) {
+    job_id last_id;
+    this->getLastJob(&last_id);
+
+
+    JOB_STATUS status = isStopped ? STOPPED : UNFINISHED;
+    time_t timestamp = time(nullptr);
+    if (timestamp == ((time_t) -1)) {
+        throw SmashSysFailure("time failed");
+    }
+
+    JobEntry entry(last_id+1, timestamp, pid, cmd, status);
 }
+
+void JobsList::removeJobById(job_id jobId) {
+    this->jobs_list.erase(jobId);
+}
+
+
+///////////////////External Commands end//////////////////////////

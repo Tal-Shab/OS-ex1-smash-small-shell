@@ -119,14 +119,17 @@ public:
 
 class JobsList {
 public:
-  class JobEntry {
-   // TODO: Add your data members
-   job_id id;
-   time_t timestamp;
-   pid_t pid;
-   Command* cmd;
-   JOB_STATUS status;
-  };
+    struct JobEntry {
+        // TODO: Add your data members
+        job_id id;
+        time_t timestamp;
+        pid_t pid;
+        Command* cmd;
+        JOB_STATUS status;
+
+        JobEntry(job_id id, time_t timestamp, pid_t pid, Command* cmd, JOB_STATUS status) :
+            id(id), timestamp(timestamp), pid(pid), cmd(cmd), status(status) {}
+    };
 
  // TODO: Add your data members
  public:
@@ -134,11 +137,10 @@ public:
   ~JobsList() = default;
   void addJob(pid_t pid, Command* cmd, bool isStopped = false);
   void printJobsList();
-  void killAllJobs();
-  JobEntry * getJobById(int jobId);
-  void removeJobById(int jobId);
-  JobEntry * getLastJob(int* lastJobId);
-  JobEntry *getLastStoppedJob(int *jobId);
+  JobEntry* getJobById(job_id jobId);
+  void removeJobById(job_id jobId);
+  JobEntry* getLastJob(job_id* lastJobId);
+  JobEntry* getLastStoppedJob(job_id* jobId);
   // TODO: Add extra methods or modify exisitng ones as needed
 private:
     std::map<job_id, JobEntry> jobs_list;
@@ -207,7 +209,8 @@ class SmallShell {
   string prev_dir;
   pid_t curr_fg;
 
-  std::map<pid_t, job_id> procToJobId;
+  JobsList jobs_list;
+  std::map<pid_t, job_id> proc_to_job_id;
  public:
   Command *CreateCommand(const char* cmd_line);
   SmallShell(SmallShell const&)      = delete; // disable copy ctor
@@ -226,8 +229,8 @@ class SmallShell {
   void printPromptLine() const ;
   void printSmashId() const ;
   void setCurrFg(pid_t fg_pid=0);
-  // TODO: add extra methods as needed
   void removeFinishedJobs();
+  void killAllJobs();
 
 };
 
