@@ -40,6 +40,7 @@ protected:
   int n_args;
   bool is_BG;
   char cmd_line[COMMAND_ARGS_MAX_LENGTH];
+  char raw_cmd_line[COMMAND_ARGS_MAX_LENGTH];
 public:
   explicit Command(const char* cmd_line);
   virtual ~Command();
