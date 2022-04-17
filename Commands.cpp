@@ -81,7 +81,7 @@ void _removeBackgroundSign(char* cmd_line) {
 // TODO: Add your implementation for classes in Commands.h
 
 
-////////////////////Comand Class start//////////////////////////////////////
+////////////////////Command Class start//////////////////////////////////////
 
 Command::Command(const char* cmd_line){
   is_BG = _isBackgroundComamnd(cmd_line);
@@ -98,30 +98,30 @@ Command::~Command(){
   }
 }
 
-////////////////////Comand Class end//////////////////////////////////////
+////////////////////Command Class end//////////////////////////////////////
 
+///////////////////Built in commands start//////////////////////////
+BuiltInCommand::BuiltInCommand(const char* cmd_line) : Command(cmd_line) {
+    this->is_BG = false;
+}
 
-
-///////////////////Build in commands start//////////////////////////
-BuiltInCommand::BuiltInCommand(const char* cmd_line) : Command(cmd_line){}
-
-ChPromptCommand::ChPromptCommand(const char* cmd_line) : BuiltInCommand(cmd_line){
+ChPromptCommand::ChPromptCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {
   if (n_args == 1)
     new_prompt = DEFAULT_PROMPT;
   else
     new_prompt = args[1];
 }
 
-void ChPromptCommand::execute(){
+void ChPromptCommand::execute() {
   SmallShell& smash = SmallShell::getInstance();
   smash.setPromptLine(this->new_prompt);
 }
 
-ShowPidCommand::ShowPidCommand(const char* cmd_line) : BuiltInCommand(cmd_line){}
+ShowPidCommand::ShowPidCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {}
 
 void ShowPidCommand::execute(){
-  SmallShell& smash = SmallShell::getInstance();
-  smash.printSmashId();
+    SmallShell& smash = SmallShell::getInstance();
+    smash.printSmashId();
 }
 
 GetCurrDirCommand::GetCurrDirCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {}
@@ -134,7 +134,7 @@ void GetCurrDirCommand::execute(){
 
 
 
-///////////////////Build in commands end//////////////////////////
+///////////////////Built in commands end//////////////////////////
 
 
 
