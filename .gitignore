@@ -1,3 +1,12 @@
+.vscode/
+build/
+
+.idea/
+cmake-build-debug/
+
+# our exec file
+smash
+
 # Prerequisites
 *.d
 
@@ -30,8 +39,3 @@
 *.exe
 *.out
 *.app
-
-.vscode/
-build/
-
-smash
