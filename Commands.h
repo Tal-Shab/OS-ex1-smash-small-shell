@@ -120,9 +120,10 @@ class JobsList {
 public:
   class JobEntry {
    // TODO: Add your data members
-   pid_t pid;
    job_id id;
    time_t timestamp;
+   pid_t pid;
+   Command* cmd;
    JOB_STATUS status;
   };
 
