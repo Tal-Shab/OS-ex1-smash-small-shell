@@ -99,6 +99,11 @@ Command::~Command(){
   }
 }
 
+ostream& operator<<(ostream& os, const Command& cm) {
+    os << cm.raw_cmd_line;
+    return os;
+}
+
 ////////////////////Command Class end//////////////////////////////////////
 
 ///////////////////Built in commands start//////////////////////////
@@ -113,23 +118,26 @@ ChPromptCommand::ChPromptCommand(const char* cmd_line) : BuiltInCommand(cmd_line
     new_prompt = args[1];
 }
 
-void ChPromptCommand::execute() {
+pid_t ChPromptCommand::execute() {
   SmallShell& smash = SmallShell::getInstance();
   smash.setPromptLine(this->new_prompt);
+  return DEFAULT_PROCESS_ID;
 }
 
 ShowPidCommand::ShowPidCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {}
 
-void ShowPidCommand::execute(){
+pid_t ShowPidCommand::execute(){
     SmallShell& smash = SmallShell::getInstance();
     smash.printSmashId();
+    return DEFAULT_PROCESS_ID;
 }
 
 GetCurrDirCommand::GetCurrDirCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {}
 
-void GetCurrDirCommand::execute(){
+pid_t GetCurrDirCommand::execute(){
     SmallShell& smash = SmallShell::getInstance();
     cout << smash.getCurrDir() << endl;
+    return DEFAULT_PROCESS_ID;
 }
 
 ChangeDirCommand::ChangeDirCommand(const char *cmd_line, string const prev_dir) : BuiltInCommand(cmd_line), dest_dir() {
@@ -150,13 +158,13 @@ ChangeDirCommand::ChangeDirCommand(const char *cmd_line, string const prev_dir) 
     }
 }
 
-void ChangeDirCommand::execute() {
+pid_t ChangeDirCommand::execute() {
     SmallShell& smash = SmallShell::getInstance();
 
     // currently ignoring no empty dir argument, should check on Piazza once an instructor answers.
     // bash for example changes into the /home dir when no args are passed, so we might want to do that?
     if (dest_dir.empty()) {
-        return;
+        return true;
     }
 
     if (chdir(dest_dir.c_str()) == 0) {
@@ -164,6 +172,13 @@ void ChangeDirCommand::execute() {
     } else {
         throw SmashSysFailure("chdir failed");
     }
+    return DEFAULT_PROCESS_ID;
+}
+
+JobsCommand::JobsCommand(const char* cmd_line, JobsList* jobs_list) : BuiltInCommand(cmd_line), jobs_list(jobs_list) {}
+pid_t JobsCommand::execute() {
+    this->jobs_list->printJobsList();
+    return DEFAULT_PROCESS_ID;
 }
 
 ///////////////////Built in commands end//////////////////////////
@@ -174,8 +189,6 @@ void ChangeDirCommand::execute() {
 
 SmallShell::SmallShell(){
     this->pid = getpid();
-    this->curr_fg_pid = this->pid;
-    this->curr_fg_job_id = DEFAULT_JOB_ID;
     this->curr_dir = string();
     this->setCurrDir();
 }
@@ -223,6 +236,8 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
         return new GetCurrDirCommand(cmd_line);
     } else if (firstWord == "cd") {
         return new ChangeDirCommand(cmd_line, this->prev_dir);
+    } else if (firstWord == "jobs") {
+        return new JobsCommand(cmd_line, &(this->jobs_list));
     } else {
         return new ExternalCommand(cmd_line);
     }
@@ -245,30 +260,66 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 void SmallShell::executeCommand(const char *cmd_line) {
     try {
         Command *cmd = CreateCommand(cmd_line);
-        if (cmd != nullptr)
-            cmd->execute();
-    } catch (SmashCmdError& err) {
+        if (cmd != nullptr) {
+            pid_t fork_pid = cmd->execute();
+            if (fork_pid == DEFAULT_JOB_ID) {
+                delete (cmd);
+                return; //it was FG, no need to add to list
+            }
+            /*not Built in command*/
+            if(cmd->is_BG) {
+                this->jobs_list.addJob(fork_pid, cmd);
+            } else {
+            this->jobs_list.updateCurrFGJob(fork_pid, cmd);
+            waitpid(fork_pid, nullptr, 0);
+            this->jobs_list.resetCurrFGJob();
+            delete (cmd);
+            }
+        }
+    }
+    catch (SmashCmdError& err) {
         cerr << err.what() << endl;
     } catch (SmashSysFailure& err) {
         perror(err.what());
-    }
+    }  
   // Please note that you must fork smash process for some commands (e.g., external commands....)
 }
 
-void SmallShell::setCurrFgPid(pid_t fg_pid) {
-    this->curr_fg_pid = fg_pid;
+
+SmashError::SmashError(const string& msg) : msg(string(ERROR_PREFIX) + msg) {}
+
+const char* SmashError::what() const noexcept {
+    return msg.c_str();
 }
 
-void SmallShell::setCurrFgJobId(job_id fg_job_id) {
-    this->curr_fg_job_id = fg_job_id;
+///////////////////SmallShell end///////////////////////////
+
+
+
+//////////////////////Job Entry start///////////////////////
+double JobsList::JobEntry_t::calcDiffTime() {
+    time_t curr_timestamp = time(nullptr);
+    if (curr_timestamp == ((time_t) -1))
+        throw SmashSysFailure("time failed");
+
+    return ( difftime(curr_timestamp, this->timestamp) );
 }
+//////////////////////Job Entry end///////////////////////
+
+
+
+//////////////////Job List start////////////////////////////
 
 JobsList::JobEntry JobsList::getJobByJobId(job_id jobId) {
-    return (this->jobs_list.find(jobId)->second);
+    auto map_elem = this->jobs_list.find(jobId);
+    if (map_elem == this->jobs_list.end()) return nullptr;
+    return (map_elem->second);
 }
 
 JobsList::JobEntry JobsList::getJobByProcessId(pid_t pid) {
-    job_id jid = this->proc_to_job_id.find(pid)->second;
+    auto map_elem = this->proc_to_job_id.find(pid);
+    if (map_elem == this->proc_to_job_id.end()) return nullptr;
+    job_id jid = map_elem->second;
     return (getJobByJobId(jid));
 }
 
@@ -293,13 +344,18 @@ JobsList::JobEntry JobsList::getLastStoppedJob(job_id* jobId) {
 }
 
 void JobsList::removeJobByProcessId(pid_t pid_to_remove) {
-    job_id jid_to_remove = this->proc_to_job_id.find(pid_to_remove)->second;
+    auto map_element = this->proc_to_job_id.find(pid_to_remove);
+    if(map_element == this->proc_to_job_id.end()) return;
+    
+    job_id jid_to_remove = map_element->second;
     this->jobs_list.erase(jid_to_remove);
     this->proc_to_job_id.erase(pid_to_remove);
 }
 
 void JobsList::removeJobByJobId(job_id job_id_to_remove) {
-    pid_t process_to_remove = getJobByJobId(job_id_to_remove)->pid;
+    JobEntry job_entry = getJobByJobId(job_id_to_remove);
+    if (job_entry == nullptr) return;
+    pid_t process_to_remove = job_entry->pid;
     this->jobs_list.erase(job_id_to_remove);
     this->proc_to_job_id.erase(process_to_remove);
 }
@@ -307,24 +363,61 @@ void JobsList::removeJobByJobId(job_id job_id_to_remove) {
 
 void JobsList::removeFinishedJobs() {
     pid_t done_pid;
-    while ((done_pid = waitpid(-1, nullptr, WNOHANG)) != -1) {
+    while ((done_pid = waitpid(-1, nullptr, WNOHANG)) > 0) {
         this->removeJobByProcessId(done_pid);
     }
 }
 
-SmashError::SmashError(const string& msg) : msg(string(ERROR_PREFIX) + msg) {}
-
-const char* SmashError::what() const noexcept {
-    return msg.c_str();
+void JobsList::addJob(pid_t pid, Command *cmd, bool isStopped, job_id jobId) {
+    this->removeFinishedJobs(); //cleanup all done jobs before inserting a new one
+    if( waitpid(pid , nullptr, WNOHANG) == pid ) return;
+    if( jobId == DEFAULT_JOB_ID) {
+        this->getLastJob(&jobId);
+        jobId += 1;
+    }
+    JOB_STATUS status = isStopped ? STOPPED : UNFINISHED;
+    time_t timestamp = time(nullptr);
+    if (timestamp == ((time_t) -1)) {
+        throw SmashSysFailure("time failed");
+    }
+    JobEntry entry = make_shared<JobEntry_t>(jobId, timestamp, pid, cmd, status);
+    this->proc_to_job_id.insert({entry->pid, entry->id});
+    this->jobs_list.insert({entry->id, entry});
 }
 
-///////////////////SmallShell end//////////////////////////
+
+void JobsList::printJobsList() {
+    this->removeFinishedJobs();
+    for (auto iter = this->jobs_list.begin() ; iter != this->jobs_list.end() ; iter++) {
+        JobEntry job_entry = iter->second;
+        cout << "[" << job_entry->id << "] ";
+        cout << *(job_entry->cmd) << " : ";
+        cout << job_entry->pid << " ";
+        cout << job_entry->calcDiffTime() << " secs";
+        if(job_entry->status == STOPPED)
+            cout << " (stopped)";
+        cout << endl;
+    }  
+}
+
+void JobsList::updateCurrFGJob(pid_t pid, Command* cmd, job_id jobId) {
+    JobEntry entry = make_shared<JobEntry_t>(jobId, 0, pid, cmd, UNFINISHED);
+    ///TODO assert this->curr_FG_job==nullptr 
+    this->curr_FG_job = entry;
+}
+
+void JobsList::resetCurrFGJob() {
+    this->curr_FG_job = nullptr;
+}
+
+//////////////////Job List end////////////////////////////
+
 
 ///////////////////External Commands start//////////////////////////
 
 ExternalCommand::ExternalCommand(const char *cmd_line) : Command(cmd_line){}
 
-void ExternalCommand::execute() {
+pid_t ExternalCommand::execute() {
     pid_t fork_pid = fork();
     if (fork_pid == -1) {
         throw SmashSysFailure("fork failed");
@@ -343,38 +436,17 @@ void ExternalCommand::execute() {
         exit(EXIT_FAILURE);
     } else {
         // parent process (smash)
-        SmallShell& smash = SmallShell::getInstance();
-
+        /*SmallShell& smash = SmallShell::getInstance();
         if (is_BG) {
-            //////TODO//////////
+            smash.jobs_list.addJob(fork_pid, this);
         } else {
             smash.setCurrFgPid(fork_pid);
             waitpid(fork_pid, nullptr, 0);
-            smash.setCurrFgPid();
+            smash.setCurrFgPid();*/
+            return (fork_pid);
         }
-    }
 }
 
-
-
-///////////////////External Commands end//////////////////////////
-
-///////////////////External Commands start//////////////////////////
-job_id JobsList::addJob(pid_t pid, Command *cmd, bool isStopped, job_id jobId) {
-    this->removeFinishedJobs(); //cleanup all done jobs before inserting a new one 
-    if( jobId == DEFAULT_JOB_ID) {
-        this->getLastJob(&jobId);
-        jobId += 1;
-    }
-    JOB_STATUS status = isStopped ? STOPPED : UNFINISHED;
-    time_t timestamp = time(nullptr);
-    if (timestamp == ((time_t) -1)) {
-        throw SmashSysFailure("time failed");
-    }
-    JobEntry entry = make_shared<JobEntry_t>(jobId, timestamp, pid, cmd, status);
-    this->jobs_list.insert({entry->id, entry});
-    return entry->id;
-}
 
 
 ///////////////////External Commands end//////////////////////////
