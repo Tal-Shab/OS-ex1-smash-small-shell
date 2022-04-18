@@ -7,11 +7,14 @@
 #include <unistd.h>
 #include <cstring>
 #include <ctime>
+#include <memory>
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
 #define DEFAULT_PROMPT "smash"
 #define ERROR_PREFIX "smash error: "
+#define DEFAULT_JOB_ID (0)
+#define DEFAULT_PROCESS_ID (0)
 
 typedef unsigned int job_id;
 enum JOB_STATUS {UNFINISHED, STOPPED};
@@ -119,31 +122,33 @@ public:
 
 class JobsList {
 public:
-    struct JobEntry {
-        // TODO: Add your data members
+    struct JobEntry_t {
         job_id id;
         time_t timestamp;
         pid_t pid;
         Command* cmd;
         JOB_STATUS status;
 
-        JobEntry(job_id id, time_t timestamp, pid_t pid, Command* cmd, JOB_STATUS status) :
+        JobEntry_t(job_id id, time_t timestamp, pid_t pid, Command* cmd, JOB_STATUS status) :
             id(id), timestamp(timestamp), pid(pid), cmd(cmd), status(status) {}
     };
-
- // TODO: Add your data members
- public:
+typedef std::shared_ptr<JobEntry_t> JobEntry;
+public:
   JobsList() = default;
   ~JobsList() = default;
-  job_id addJob(pid_t pid, Command* cmd, bool isStopped = false);
-  void printJobsList();
-  JobEntry* getJobById(job_id jobId);
-  void removeJobById(job_id jobId);
-  JobEntry* getLastJob(job_id* lastJobId);
-  JobEntry* getLastStoppedJob(job_id* jobId);
-  // TODO: Add extra methods or modify exisitng ones as needed
+  job_id addJob(pid_t pid, Command* cmd, bool isStopped = false, job_id jobId = DEFAULT_JOB_ID);
+  void printJobsList(); //TODO
+  JobEntry getJobByJobId(job_id jobId);
+  JobEntry getJobByProcessId(pid_t pid);
+  void removeJobByJobId(job_id job_id_to_remove);
+  void removeJobByProcessId(pid_t pid_to_remove);
+  JobEntry getLastJob(job_id* lastJobId);
+  JobEntry getLastStoppedJob(job_id* jobId);
+  void removeFinishedJobs(); 
+  void killAllJobs(); //TODO
 private:
-    std::map<job_id, JobEntry> jobs_list;
+    std::map<pid_t, job_id> proc_to_job_id;
+    std::map<job_id, JobEntry > jobs_list;
 };
 
 class JobsCommand : public BuiltInCommand {
@@ -207,10 +212,9 @@ class SmallShell {
   pid_t pid;
   string curr_dir;
   string prev_dir;
-  pid_t curr_fg;
-
+  pid_t curr_fg_pid;
+  job_id curr_fg_job_id;
   JobsList jobs_list;
-  std::map<pid_t, job_id> proc_to_job_id;
  public:
   Command *CreateCommand(const char* cmd_line);
   SmallShell(SmallShell const&)      = delete; // disable copy ctor
@@ -228,10 +232,8 @@ class SmallShell {
   void setCurrDir();
   void printPromptLine() const ;
   void printSmashId() const ;
-  void setCurrFg(pid_t fg_pid=0);
-  void removeFinishedJobs();
-  void killAllJobs();
-
+  void setCurrFgPid(pid_t fg_pid = DEFAULT_PROCESS_ID);
+  void setCurrFgJobId(job_id fg_job_id = DEFAULT_JOB_ID);
 };
 
 #endif //SMASH_COMMAND_H_

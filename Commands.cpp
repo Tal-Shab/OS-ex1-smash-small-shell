@@ -173,11 +173,11 @@ void ChangeDirCommand::execute() {
 ///////////////////SmallShell start//////////////////////////
 
 SmallShell::SmallShell(){
-  this->pid = getpid();
-  this->curr_fg = this->pid;
-
-  this->curr_dir = string();
-  this->setCurrDir();
+    this->pid = getpid();
+    this->curr_fg_pid = this->pid;
+    this->curr_fg_job_id = DEFAULT_JOB_ID;
+    this->curr_dir = string();
+    this->setCurrDir();
 }
 
 SmallShell::~SmallShell(){
@@ -255,21 +255,60 @@ void SmallShell::executeCommand(const char *cmd_line) {
   // Please note that you must fork smash process for some commands (e.g., external commands....)
 }
 
-void SmallShell::setCurrFg(pid_t fg_pid) {
-    if (fg_pid == 0) {
-        this->curr_fg = this->pid;
-    } else {
-        this->curr_fg = fg_pid;
-    }
+void SmallShell::setCurrFgPid(pid_t fg_pid) {
+    this->curr_fg_pid = fg_pid;
 }
 
-void SmallShell::removeFinishedJobs() {
+void SmallShell::setCurrFgJobId(job_id fg_job_id) {
+    this->curr_fg_job_id = fg_job_id;
+}
+
+JobsList::JobEntry JobsList::getJobByJobId(job_id jobId) {
+    return (this->jobs_list.find(jobId)->second);
+}
+
+JobsList::JobEntry JobsList::getJobByProcessId(pid_t pid) {
+    job_id jid = this->proc_to_job_id.find(pid)->second;
+    return (getJobByJobId(jid));
+}
+
+JobsList::JobEntry JobsList::getLastJob(job_id* lastJobId) {
+    if( this->jobs_list.empty()) {
+        *lastJobId = 0;
+        return nullptr;
+    }
+    *lastJobId = (this->jobs_list.rbegin())->first; 
+    return ( (this->jobs_list.rbegin())->second );
+}
+
+JobsList::JobEntry JobsList::getLastStoppedJob(job_id* jobId) {
+    for(auto iter = this->jobs_list.rbegin(); iter != this->jobs_list.rend(); ++iter) {
+        if(iter->second->status == STOPPED){
+            *jobId = iter->first;
+            return (iter->second);
+        }
+    }
+    *jobId = 0;
+    return nullptr; //not an error, just no stopped jobs at jobs list
+}
+
+void JobsList::removeJobByProcessId(pid_t pid_to_remove) {
+    job_id jid_to_remove = this->proc_to_job_id.find(pid_to_remove)->second;
+    this->jobs_list.erase(jid_to_remove);
+    this->proc_to_job_id.erase(pid_to_remove);
+}
+
+void JobsList::removeJobByJobId(job_id job_id_to_remove) {
+    pid_t process_to_remove = getJobByJobId(job_id_to_remove)->pid;
+    this->jobs_list.erase(job_id_to_remove);
+    this->proc_to_job_id.erase(process_to_remove);
+}
+
+
+void JobsList::removeFinishedJobs() {
     pid_t done_pid;
-    job_id jid;
     while ((done_pid = waitpid(-1, nullptr, WNOHANG)) != -1) {
-        jid = this->proc_to_job_id.find(done_pid)->second;
-        this->jobs_list.removeJobById(jid);
-        this->proc_to_job_id.erase(done_pid);
+        this->removeJobByProcessId(done_pid);
     }
 }
 
@@ -307,11 +346,11 @@ void ExternalCommand::execute() {
         SmallShell& smash = SmallShell::getInstance();
 
         if (is_BG) {
-
+            //////TODO//////////
         } else {
-            smash.setCurrFg(fork_pid);
+            smash.setCurrFgPid(fork_pid);
             waitpid(fork_pid, nullptr, 0);
-            smash.setCurrFg();
+            smash.setCurrFgPid();
         }
     }
 }
@@ -321,22 +360,20 @@ void ExternalCommand::execute() {
 ///////////////////External Commands end//////////////////////////
 
 ///////////////////External Commands start//////////////////////////
-job_id JobsList::addJob(pid_t pid, Command *cmd, bool isStopped) {
-    /*finished jobs remove will be handled outside*/
-    job_id last_id;
-    this->getLastJob(&last_id);
+job_id JobsList::addJob(pid_t pid, Command *cmd, bool isStopped, job_id jobId) {
+    this->removeFinishedJobs(); //cleanup all done jobs before inserting a new one 
+    if( jobId == DEFAULT_JOB_ID) {
+        this->getLastJob(&jobId);
+        jobId += 1;
+    }
     JOB_STATUS status = isStopped ? STOPPED : UNFINISHED;
     time_t timestamp = time(nullptr);
     if (timestamp == ((time_t) -1)) {
         throw SmashSysFailure("time failed");
     }
-    JobEntry entry(last_id+1, timestamp, pid, cmd, status);
-    this->jobs_list.insert({entry.id, entry});
-    return entry.id;
-}
-
-void JobsList::removeJobById(job_id jobId) {
-    this->jobs_list.erase(jobId);
+    JobEntry entry = make_shared<JobEntry_t>(jobId, timestamp, pid, cmd, status);
+    this->jobs_list.insert({entry->id, entry});
+    return entry->id;
 }
 
 
