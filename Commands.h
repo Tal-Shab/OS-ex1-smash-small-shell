@@ -135,7 +135,7 @@ public:
  public:
   JobsList() = default;
   ~JobsList() = default;
-  void addJob(pid_t pid, Command* cmd, bool isStopped = false);
+  job_id addJob(pid_t pid, Command* cmd, bool isStopped = false);
   void printJobsList();
   JobEntry* getJobById(job_id jobId);
   void removeJobById(job_id jobId);
