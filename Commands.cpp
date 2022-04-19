@@ -602,7 +602,7 @@ pid_t ExternalCommand::execute() {
     if (fork_pid == 0) {
         // child process
         setpgrp();
-        char* argv[] = {"/bin/bash", "-c", this->cmd_line, nullptr};
+        char *argv[] = {"/bin/bash", "-c", this->cmd_line, nullptr};
         execv(argv[0], argv);
         /*
          * Panic mode
@@ -612,15 +612,8 @@ pid_t ExternalCommand::execute() {
         exit(EXIT_FAILURE);
     } else {
         // parent process (smash)
-        /*SmallShell& smash = SmallShell::getInstance();
-        if (is_BG) {
-            smash.jobs_list.addJob(fork_pid, this);
-        } else {
-            smash.setCurrFgPid(fork_pid);
-            waitpid(fork_pid, nullptr, 0);
-            smash.setCurrFgPid();*/
-            return (fork_pid);
-        }
+        return (fork_pid);
+    }
 }
 
 
