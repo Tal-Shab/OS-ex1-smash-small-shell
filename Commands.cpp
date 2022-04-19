@@ -182,6 +182,149 @@ pid_t JobsCommand::execute() {
     return DEFAULT_PROCESS_ID;
 }
 
+bool _isnumber(char* str) {
+    for (; *str != '\0'; str++) {
+        if (isdigit(*str) == false) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+ForegroundCommand::ForegroundCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line), jobs_list(jobs) {
+    if (this->n_args > 2) {
+        throw SmashCmdError("fg: invalid arguments");
+    }
+
+    if (this->n_args == 2) {
+        if (_isnumber(this->args[1])) {
+            this->dest_jid = (job_id)stoul(this->args[1]);
+        } else {
+            throw SmashCmdError("fg: invalid arguments");
+        }
+    } else {
+        this->dest_jid = DEFAULT_JOB_ID;
+    }
+}
+
+pid_t ForegroundCommand::execute() {
+    this->jobs_list->removeFinishedJobs();
+
+    JobsList::JobEntry job_entry;
+    pid_t dest_pid;
+
+    if (this->dest_jid == DEFAULT_JOB_ID) {
+        job_entry = this->jobs_list->getLastJob(nullptr);
+        if (job_entry == nullptr) {
+            throw SmashCmdError("fg: jobs list is empty");
+        }
+    } else {
+        job_entry = this->jobs_list->getJobByJobId(this->dest_jid);
+        if (job_entry == nullptr) {
+            throw SmashCmdError("fg: job-id " + to_string(this->dest_jid) + " does not exist");
+        }
+    }
+
+    cout << *(job_entry->cmd) << " : " << job_entry->pid << endl;
+    if ( kill(job_entry->pid, SIGCONT) == -1 ) {
+        throw SmashSysFailure("kill failed");
+    }
+
+    this->jobs_list->updateCurrFGJob(job_entry->pid, job_entry->cmd, job_entry->id);
+    this->jobs_list->removeJobByJobId(job_entry->id);
+
+    waitpid(job_entry->pid, nullptr, 0);
+
+    this->jobs_list->resetCurrFGJob();
+
+    return DEFAULT_PROCESS_ID;
+}
+
+BackgroundCommand::BackgroundCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line), jobs_list(jobs) {
+    if (this->n_args > 2) {
+        throw SmashCmdError("bg: invalid arguments");
+    }
+
+    if (this->n_args == 2) {
+        if (_isnumber(this->args[1])) {
+            this->dest_jid = (job_id)stoul(this->args[1]);
+        } else {
+            throw SmashCmdError("bg: invalid arguments");
+        }
+    } else {
+        this->dest_jid = DEFAULT_JOB_ID;
+    }
+}
+
+pid_t BackgroundCommand::execute() {
+    this->jobs_list->removeFinishedJobs();
+
+    JobsList::JobEntry job_entry;
+    pid_t dest_pid;
+
+    if (this->dest_jid == DEFAULT_JOB_ID) {
+        job_entry = this->jobs_list->getLastStoppedJob(nullptr);
+        if (job_entry == nullptr) {
+            throw SmashCmdError("bg: there is no stopped jobs to resume");
+        }
+    } else {
+        job_entry = this->jobs_list->getJobByJobId(this->dest_jid);
+        if (job_entry == nullptr) {
+            throw SmashCmdError("bg: job-id " + to_string(this->dest_jid) + " does not exist");
+        } else if (job_entry->status != STOPPED) {
+            throw SmashCmdError("bg: job-id " + to_string(this->dest_jid) + " is already running in the background");
+        }
+    }
+
+    cout << *(job_entry->cmd) << " : " << job_entry->pid << endl;
+    if ( kill(job_entry->pid, SIGCONT) == -1 ) {
+        throw SmashSysFailure("kill failed");
+    }
+    job_entry->status = UNFINISHED;
+
+    return DEFAULT_PROCESS_ID;
+}
+
+QuitCommand::QuitCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line), jobs(jobs) {
+    kill = ( n_args >= 2 && args[1] == string("kill") );
+}
+
+pid_t QuitCommand::execute() {
+    if (this->kill) {
+        this->jobs->killAllJobs();
+    }
+
+    exit(0);
+}
+
+KillCommand::KillCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line), jobs(jobs){
+    if (this->n_args != 3 || args[1][0] != '-' || !_isnumber(this->args[1]+1) || !_isnumber(this->args[2])) {
+        throw SmashCmdError("kill: invalid arguments");
+    }
+
+    this->sig_num = (int)stoul(this->args[1]+1);
+    this->dest_jid = (job_id)stoul(this->args[2]);
+}
+
+pid_t KillCommand::execute() {
+//    this->jobs->removeFinishedJobs();
+    JobsList::JobEntry job = this->jobs->getJobByJobId(this->dest_jid);
+    if (job == nullptr) {
+        throw SmashCmdError("kill: job-id " + to_string(this->dest_jid) + " does not exist");
+    }
+
+    if ( kill(job->pid, this->sig_num) == -1 ) {
+        throw SmashSysFailure("kill failed");
+    }
+
+    cout << "signal number " << this->sig_num << " was sent to pid " << job->pid << endl;
+    this->jobs->removeFinishedJobs();
+
+    return DEFAULT_PROCESS_ID;
+}
+
+
 ///////////////////Built in commands end//////////////////////////
 
 
@@ -417,6 +560,22 @@ void JobsList::updateCurrFGJob(pid_t pid, CommandPtr cmd, job_id jobId) {
 
 void JobsList::resetCurrFGJob() {
     this->curr_FG_job = nullptr;
+}
+
+void JobsList::killAllJobs() {
+    this->removeFinishedJobs();
+
+    cout << MSG_PREFIX << "sending SIGKILL signal to " << this->jobs_list.size() << " jobs:" << endl;
+    for (auto iter = this->jobs_list.begin(), next_it = iter; iter != this->jobs_list.end(); iter = next_it) {
+        ++next_it;
+        JobEntry job = iter->second;
+        cout << job->pid << ": " << *(job->cmd) << endl;
+        if ( kill(job->pid, SIGKILL) == -1 ) {
+            throw SmashSysFailure("kill failed");
+        }
+        this->jobs_list.erase(iter);
+        this->proc_to_job_id.erase(job->pid);
+    }
 }
 
 //////////////////Job List end////////////////////////////
