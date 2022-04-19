@@ -479,21 +479,27 @@ JobsList::JobEntry JobsList::getJobByProcessId(pid_t pid) {
 
 JobsList::JobEntry JobsList::getLastJob(job_id* lastJobId) {
     if( this->jobs_list.empty()) {
-        *lastJobId = 0;
+        if (lastJobId != nullptr)
+            *lastJobId = 0;
         return nullptr;
     }
-    *lastJobId = (this->jobs_list.rbegin())->first; 
+
+    if (lastJobId != nullptr)
+        *lastJobId = (this->jobs_list.rbegin())->first;
     return ( (this->jobs_list.rbegin())->second );
 }
 
 JobsList::JobEntry JobsList::getLastStoppedJob(job_id* jobId) {
     for(auto iter = this->jobs_list.rbegin(); iter != this->jobs_list.rend(); ++iter) {
         if(iter->second->status == STOPPED){
-            *jobId = iter->first;
+            if (jobId != nullptr)
+                *jobId = iter->first;
             return (iter->second);
         }
     }
-    *jobId = 0;
+
+    if (jobId != nullptr)
+        *jobId = 0;
     return nullptr; //not an error, just no stopped jobs at jobs list
 }
 
