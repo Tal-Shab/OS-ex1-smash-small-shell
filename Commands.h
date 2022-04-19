@@ -170,7 +170,9 @@ public:
 };
 
 class KillCommand : public BuiltInCommand {
- // TODO: Add your data members
+    JobsList* jobs;
+    job_id dest_jid;
+    int sig_num;
  public:
   KillCommand(const char* cmd_line, JobsList* jobs);
   virtual ~KillCommand() {}
@@ -178,15 +180,17 @@ class KillCommand : public BuiltInCommand {
 };
 
 class ForegroundCommand : public BuiltInCommand {
- // TODO: Add your data members
- public:
-  ForegroundCommand(const char* cmd_line, JobsList* jobs);
-  virtual ~ForegroundCommand() {}
-  pid_t execute() override;
+    JobsList* jobs_list;
+    job_id dest_jid;
+public:
+    ForegroundCommand(const char* cmd_line, JobsList* jobs);
+    virtual ~ForegroundCommand() {}
+    pid_t execute() override;
 };
 
 class BackgroundCommand : public BuiltInCommand {
- // TODO: Add your data members
+    JobsList* jobs_list;
+    job_id dest_jid;
  public:
   BackgroundCommand(const char* cmd_line, JobsList* jobs);
   virtual ~BackgroundCommand() {}
