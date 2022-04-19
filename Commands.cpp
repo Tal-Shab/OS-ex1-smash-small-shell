@@ -410,22 +410,24 @@ CommandPtr SmallShell::CreateCommand(const char* cmd_line) {
 }
 
 void SmallShell::executeCommand(const char *cmd_line) {
+    this->jobs_list.removeFinishedJobs();
+
     try {
         CommandPtr cmd = CreateCommand(cmd_line);
         if (cmd != nullptr) {
             pid_t fork_pid = cmd->execute();
-            if (fork_pid == DEFAULT_JOB_ID) {
-                delete (cmd);
+            if (fork_pid == DEFAULT_PROCESS_ID) {
+//                delete (cmd);
                 return; //it was FG, no need to add to list
             }
             /*not Built in command*/
             if(cmd->is_BG) {
                 this->jobs_list.addJob(fork_pid, cmd);
             } else {
-            this->jobs_list.updateCurrFGJob(fork_pid, cmd);
-            waitpid(fork_pid, nullptr, 0);
-            this->jobs_list.resetCurrFGJob();
-            delete (cmd);
+                this->jobs_list.updateCurrFGJob(fork_pid, cmd);
+                waitpid(fork_pid, nullptr, 0);
+                this->jobs_list.resetCurrFGJob();
+//                delete (cmd);
             }
         }
     }
