@@ -224,22 +224,30 @@ void SmallShell::setCurrDir() {
 /**
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 */
-Command * SmallShell::CreateCommand(const char* cmd_line) {
+CommandPtr SmallShell::CreateCommand(const char* cmd_line) {
     string cmd_s = _trim((cmd_line));
     string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" &\n"));
 
     if (firstWord == "chprompt") {
-        return new ChPromptCommand(cmd_line);
+        return make_shared<ChPromptCommand>(cmd_line);
     } else if (firstWord == "showpid") {
-        return new ShowPidCommand(cmd_line);
+        return make_shared<ShowPidCommand>(cmd_line);
     } else if (firstWord == "pwd") {
-        return new GetCurrDirCommand(cmd_line);
+        return make_shared<GetCurrDirCommand>(cmd_line);
     } else if (firstWord == "cd") {
-        return new ChangeDirCommand(cmd_line, this->prev_dir);
+        return make_shared<ChangeDirCommand>(cmd_line, this->prev_dir);
     } else if (firstWord == "jobs") {
-        return new JobsCommand(cmd_line, &(this->jobs_list));
+        return make_shared<JobsCommand>(cmd_line, &(this->jobs_list));
+    } else if (firstWord == "fg") {
+        return make_shared<ForegroundCommand>(cmd_line, &(this->jobs_list));
+    } else if (firstWord == "bg") {
+        return make_shared<BackgroundCommand>(cmd_line, &(this->jobs_list));
+    } else if (firstWord == "quit") {
+        return make_shared<QuitCommand>(cmd_line, &(this->jobs_list));
+    } else if (firstWord == "kill") {
+        return make_shared<KillCommand>(cmd_line, &(this->jobs_list));
     } else {
-        return new ExternalCommand(cmd_line);
+        return make_shared<ExternalCommand>(cmd_line);
     }
     /*
     else if (firstWord.compare("showpid") == 0) {
@@ -259,7 +267,7 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 
 void SmallShell::executeCommand(const char *cmd_line) {
     try {
-        Command *cmd = CreateCommand(cmd_line);
+        CommandPtr cmd = CreateCommand(cmd_line);
         if (cmd != nullptr) {
             pid_t fork_pid = cmd->execute();
             if (fork_pid == DEFAULT_JOB_ID) {
@@ -368,7 +376,7 @@ void JobsList::removeFinishedJobs() {
     }
 }
 
-void JobsList::addJob(pid_t pid, Command *cmd, bool isStopped, job_id jobId) {
+void JobsList::addJob(pid_t pid, CommandPtr cmd, bool isStopped, job_id jobId) {
     this->removeFinishedJobs(); //cleanup all done jobs before inserting a new one
     if( waitpid(pid , nullptr, WNOHANG) == pid ) return;
     if( jobId == DEFAULT_JOB_ID) {
@@ -400,7 +408,7 @@ void JobsList::printJobsList() {
     }  
 }
 
-void JobsList::updateCurrFGJob(pid_t pid, Command* cmd, job_id jobId) {
+void JobsList::updateCurrFGJob(pid_t pid, CommandPtr cmd, job_id jobId) {
     JobEntry entry = make_shared<JobEntry_t>(jobId, 0, pid, cmd, UNFINISHED);
     ///TODO assert this->curr_FG_job==nullptr 
     this->curr_FG_job = entry;

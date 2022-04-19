@@ -56,6 +56,7 @@ public:
   // TODO: Add your extra methods if needed
 };
 
+typedef std::shared_ptr<Command> CommandPtr;
 
 class BuiltInCommand : public Command {
  public:
@@ -129,10 +130,10 @@ public:
         job_id id;
         time_t timestamp;
         pid_t pid;
-        Command* cmd;
+        CommandPtr cmd;
         JOB_STATUS status;
 
-        JobEntry_t(job_id id, time_t timestamp, pid_t pid, Command* cmd, JOB_STATUS status) :
+        JobEntry_t(job_id id, time_t timestamp, pid_t pid, CommandPtr cmd, JOB_STATUS status) :
             id(id), timestamp(timestamp), pid(pid), cmd(cmd), status(status) {}
         double calcDiffTime();
     };
@@ -140,7 +141,7 @@ typedef std::shared_ptr<JobEntry_t> JobEntry;
 public:
     JobsList() = default;
     ~JobsList() = default;
-    void addJob(pid_t pid, Command* cmd, bool isStopped = false, job_id jobId = DEFAULT_JOB_ID);
+    void addJob(pid_t pid, CommandPtr cmd, bool isStopped = false, job_id jobId = DEFAULT_JOB_ID);
     void printJobsList();
     JobEntry getJobByJobId(job_id jobId);
     JobEntry getJobByProcessId(pid_t pid);
@@ -149,8 +150,8 @@ public:
     JobEntry getLastJob(job_id* lastJobId);
     JobEntry getLastStoppedJob(job_id* jobId);
     void removeFinishedJobs(); 
-    void killAllJobs(); //TODO
-    void updateCurrFGJob(pid_t pid, Command* cmd, job_id jobId = DEFAULT_JOB_ID);
+    void killAllJobs();
+    void updateCurrFGJob(pid_t pid, CommandPtr cmd, job_id jobId = DEFAULT_JOB_ID);
     void resetCurrFGJob();
     ///function that mobed the curr FG_JOB inside the job list TODO
 private:
@@ -225,7 +226,7 @@ class SmallShell {
 
  public:
   JobsList jobs_list;
-  Command *CreateCommand(const char* cmd_line);
+  CommandPtr CreateCommand(const char* cmd_line);
   SmallShell(SmallShell const&)      = delete; // disable copy ctor
   void operator=(SmallShell const&)  = delete; // disable = operator
   static SmallShell& getInstance() // make SmallShell singleton
