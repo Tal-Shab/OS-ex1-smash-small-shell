@@ -12,11 +12,12 @@
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
 #define DEFAULT_PROMPT "smash"
+#define MSG_PREFIX "smash: "
 #define ERROR_PREFIX "smash error: "
-#define DEFAULT_JOB_ID (0)
-#define DEFAULT_PROCESS_ID (0)
+#define DEFAULT_JOB_ID (-1)
+#define DEFAULT_PROCESS_ID (-1)
 
-typedef unsigned int job_id;
+typedef int job_id;
 enum JOB_STATUS {UNFINISHED, STOPPED};
 
 using std::string;
