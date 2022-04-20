@@ -212,7 +212,6 @@ pid_t ForegroundCommand::execute() {
     this->jobs_list->removeFinishedJobs();
 
     JobsList::JobEntry job_entry;
-    pid_t dest_pid;
 
     if (this->dest_jid == DEFAULT_JOB_ID) {
         job_entry = this->jobs_list->getLastJob(nullptr);
@@ -234,10 +233,9 @@ pid_t ForegroundCommand::execute() {
     this->jobs_list->updateCurrFGJob(job_entry->pid, job_entry->cmd, job_entry->id);
     this->jobs_list->removeJobByJobId(job_entry->id);
 
-    waitpid(job_entry->pid, nullptr, 0);
+    waitpid(job_entry->pid, nullptr, WUNTRACED);
 
     this->jobs_list->resetCurrFGJob();
-
     return DEFAULT_PROCESS_ID;
 }
 
@@ -261,7 +259,6 @@ pid_t BackgroundCommand::execute() {
     this->jobs_list->removeFinishedJobs();
 
     JobsList::JobEntry job_entry;
-    pid_t dest_pid;
 
     if (this->dest_jid == DEFAULT_JOB_ID) {
         job_entry = this->jobs_list->getLastStoppedJob(nullptr);
@@ -372,7 +369,11 @@ CommandPtr SmallShell::CreateCommand(const char* cmd_line) {
     string cmd_s = _trim((cmd_line));
     string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" &\n"));
 
-    if (firstWord == "chprompt") {
+    if (cmd_s.find_first_of(">") != string::npos) {
+        return make_shared<RedirectionCommand>(cmd_line);
+    } /*else if (cmd_s.find_first_of("|") != string::npos) {
+        return make_shared<PipeCommand>(cmd_line);
+    }*/ else if (firstWord == "chprompt") {
         return make_shared<ChPromptCommand>(cmd_line);
     } else if (firstWord == "showpid") {
         return make_shared<ShowPidCommand>(cmd_line);
@@ -413,7 +414,7 @@ void SmallShell::executeCommand(const char *cmd_line) {
                 this->jobs_list.addJob(fork_pid, cmd);
             } else {
                 this->jobs_list.updateCurrFGJob(fork_pid, cmd);
-                waitpid(fork_pid, nullptr, 0);
+                waitpid(fork_pid, nullptr, WUNTRACED);
                 this->jobs_list.resetCurrFGJob();
 //                delete (cmd);
             }
@@ -574,7 +575,29 @@ void JobsList::killAllJobs() {
     }
 }
 
-//////////////////Job List end////////////////////////////
+void JobsList::killCurrFGJob() {
+    if(this->curr_FG_job == nullptr)
+        return;
+    if(-1 == kill(this->curr_FG_job->pid, SIGKILL) ) {
+        throw SmashSysFailure("kill failed");
+    }
+    waitpid(this->curr_FG_job->pid, nullptr, 0);
+    cout << MSG_PREFIX << "process " << this->curr_FG_job->pid << " was killed" << endl;
+    resetCurrFGJob();
+}
+
+void JobsList::stopCurrFGJob() {
+    JobEntry job = this->curr_FG_job;
+    if(job == nullptr)
+        return;
+    if(-1 == kill(job->pid, SIGSTOP) ) {
+        throw SmashSysFailure("kill failed");
+    }
+    addJob(job->pid, job->cmd, true, job->id);
+    cout << MSG_PREFIX << "process " << job->pid << " was stopped" << endl;
+    resetCurrFGJob();
+}
+//////////////////Jobs List end////////////////////////////
 
 
 ///////////////////External Commands start//////////////////////////
@@ -607,3 +630,48 @@ pid_t ExternalCommand::execute() {
 
 
 ///////////////////External Commands end//////////////////////////
+
+
+
+///////////////////Special Command start//////////////////////////
+
+RedirectionCommand::RedirectionCommand(const char* cmd_line):Command(cmd_line) {
+    string str_cmd_line = string(cmd_line);
+    int index_of_sub = str_cmd_line.find(">");
+    if( str_cmd_line[index_of_sub+1] == '>') {
+        this->flag |= O_APPEND;
+    }
+    else { 
+        this->flag |=  O_TRUNC;
+    }
+    int last_index = str_cmd_line.find_last_of(">");
+    this->output_file = _trim(str_cmd_line.substr(last_index+1));
+
+    SmallShell& smash = SmallShell::getInstance();
+    this->cmd = smash.CreateCommand(_trim(str_cmd_line.substr(0,index_of_sub)).c_str());
+}
+
+pid_t RedirectionCommand::execute() {
+    pid_t pid = fork();
+    if(pid == 0) { 
+        setpgrp();
+        if (-1 == close(1)) {
+            perror("smash error: close faild");
+            exit(-1);
+        }
+        if( -1 == open(this->output_file.c_str(), this->flag, S_IRUSR | S_IWUSR | S_IRGRP  | S_IROTH) ) { 
+            perror("smash error: open faild");
+            exit(-1);
+        } else {
+            this->cmd->execute();
+            if (-1 == close(1)) {
+                perror("smash error: close faild");
+                exit(-1);
+            }
+            exit(0);
+        }
+    } else {
+        waitpid(pid, nullptr , 0);
+    }
+    return DEFAULT_PROCESS_ID;
+}

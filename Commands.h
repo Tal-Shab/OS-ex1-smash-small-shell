@@ -8,6 +8,7 @@
 #include <cstring>
 #include <ctime>
 #include <memory>
+#include <fcntl.h>
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
@@ -41,75 +42,71 @@ public:
 
 class Command {
 protected:
-  char* args[COMMAND_MAX_ARGS];
-  int n_args;
-  char cmd_line[COMMAND_ARGS_MAX_LENGTH];
-  char raw_cmd_line[COMMAND_ARGS_MAX_LENGTH];
+    char* args[COMMAND_MAX_ARGS];
+    int n_args;
+    char cmd_line[COMMAND_ARGS_MAX_LENGTH];
+    char raw_cmd_line[COMMAND_ARGS_MAX_LENGTH];
 public:
-  bool is_BG;
-  explicit Command(const char* cmd_line);
-  virtual ~Command();
-  virtual pid_t execute() = 0; //will return true is job finished. else false.
-  friend std::ostream& operator<<(std::ostream& os, const Command& cm);
-  //virtual void prepare();
-  //virtual void cleanup();
-  // TODO: Add your extra methods if needed
+    bool is_BG;
+    explicit Command(const char* cmd_line);
+    virtual ~Command();
+    virtual pid_t execute() = 0; //will return true is job finished. else false.
+    friend std::ostream& operator<<(std::ostream& os, const Command& cm);
 };
 
 typedef std::shared_ptr<Command> CommandPtr;
 
 class BuiltInCommand : public Command {
- public:
-  explicit BuiltInCommand(const char* cmd_line);
-  virtual ~BuiltInCommand() {}
+public:
+    explicit BuiltInCommand(const char* cmd_line);
+    virtual ~BuiltInCommand() {}
 };
 
 class ExternalCommand : public Command {
- public:
-  explicit ExternalCommand(const char* cmd_line);
-  virtual ~ExternalCommand() {}
-  pid_t execute() override;
+public:
+    explicit ExternalCommand(const char* cmd_line);
+    virtual ~ExternalCommand() {}
+    pid_t execute() override;
 };
 
 class PipeCommand : public Command {
   // TODO: Add your data members
- public:
-  PipeCommand(const char* cmd_line);
-  virtual ~PipeCommand() {}
-  pid_t execute() override;
+public:
+    PipeCommand(const char* cmd_line);
+    virtual ~PipeCommand() {}
+    pid_t execute() override;
 };
 
 class RedirectionCommand : public Command {
- // TODO: Add your data members
+    CommandPtr cmd;
+    string output_file;
+    int flag = O_CREAT | O_WRONLY;
  public:
-  explicit RedirectionCommand(const char* cmd_line);
-  virtual ~RedirectionCommand() {}
-  pid_t execute() override;
-  //void prepare() override;
-  //void cleanup() override;
+    explicit RedirectionCommand(const char* cmd_line);
+    virtual ~RedirectionCommand() {}
+    pid_t execute() override;
 };
 
 class ChangeDirCommand : public BuiltInCommand {
-// TODO: Add your data members
     string dest_dir;
 public:
-  ChangeDirCommand(const char* cmd_line, string prev_dir);
-  virtual ~ChangeDirCommand() {}
-  pid_t execute() override;
+    ChangeDirCommand(const char* cmd_line, string prev_dir);
+    virtual ~ChangeDirCommand() {}
+    pid_t execute() override;
 };
 
 class GetCurrDirCommand : public BuiltInCommand {
- public:
-  GetCurrDirCommand(const char* cmd_line);
-  virtual ~GetCurrDirCommand() {}
-  pid_t execute() override;
+public:
+    GetCurrDirCommand(const char* cmd_line);
+    virtual ~GetCurrDirCommand() {}
+    pid_t execute() override;
 };
 
 class ShowPidCommand : public BuiltInCommand {
- public:
-  ShowPidCommand(const char* cmd_line);
-  virtual ~ShowPidCommand() {}
-  pid_t execute() override;
+public:
+    ShowPidCommand(const char* cmd_line);
+    virtual ~ShowPidCommand() {}
+    pid_t execute() override;
 };
 
 class JobsList;
@@ -117,9 +114,9 @@ class QuitCommand : public BuiltInCommand {
     JobsList* jobs;
     bool kill;
 public:
-  QuitCommand(const char* cmd_line, JobsList* jobs);
-  virtual ~QuitCommand() {}
-  pid_t execute() override;
+    QuitCommand(const char* cmd_line, JobsList* jobs);
+    virtual ~QuitCommand() {}
+    pid_t execute() override;
 };
 
 
@@ -154,7 +151,9 @@ public:
     void killAllJobs();
     void updateCurrFGJob(pid_t pid, CommandPtr cmd, job_id jobId = DEFAULT_JOB_ID);
     void resetCurrFGJob();
-    ///function that mobed the curr FG_JOB inside the job list TODO
+    void killCurrFGJob();
+    void stopCurrFGJob();
+    ///function that move the curr FG_JOB inside the job list TODO
 private:
     std::map<pid_t, job_id> proc_to_job_id;
     std::map<job_id, JobEntry > jobs_list;
