@@ -613,7 +613,7 @@ pid_t ExternalCommand::execute() {
     if (fork_pid == 0) {
         // child process
         setpgrp();
-        char *argv[] = {"/bin/bash", "-c", this->cmd_line, nullptr};
+        char* argv[] = {(char*)"/bin/bash", (char*)"-c", this->cmd_line, nullptr};
         execv(argv[0], argv);
         /*
          * Panic mode
