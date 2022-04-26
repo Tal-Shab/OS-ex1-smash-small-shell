@@ -197,24 +197,26 @@ public:
 class BackgroundCommand : public BuiltInCommand {
     JobsList* jobs_list;
     job_id dest_jid;
- public:
-  BackgroundCommand(const char* cmd_line, JobsList* jobs);
-  virtual ~BackgroundCommand() {}
-  pid_t execute() override;
+public:
+    BackgroundCommand(const char* cmd_line, JobsList* jobs);
+    virtual ~BackgroundCommand() {}
+    pid_t execute() override;
 };
 
 class TailCommand : public BuiltInCommand {
- public:
-  TailCommand(const char* cmd_line);
-  virtual ~TailCommand() {}
-  pid_t execute() override;
+    int line_count = DEFAULT_TAIL_COUNT;
+    char* filename;
+public:
+    TailCommand(const char* cmd_line);
+    virtual ~TailCommand() {}
+    pid_t execute() override;
 };
 
 class TouchCommand : public BuiltInCommand {
- public:
-  TouchCommand(const char* cmd_line);
-  virtual ~TouchCommand() {}
-  pid_t execute() override;
+public:
+    TouchCommand(const char* cmd_line);
+    virtual ~TouchCommand() {}
+    pid_t execute() override;
 };
 
 class ChPromptCommand : public BuiltInCommand {
@@ -226,33 +228,33 @@ public:
 };
 
 class SmallShell {
- private:
-  SmallShell();
-  string prompt = DEFAULT_PROMPT;
-  pid_t pid;
-  string curr_dir;
-  string prev_dir;
-  //pid_t curr_fg_pid;
-  //job_id curr_fg_job_id;
+private:
+    SmallShell();
 
- public:
-  JobsList jobs_list;
-  CommandPtr CreateCommand(const char* cmd_line);
-  SmallShell(SmallShell const&)      = delete; // disable copy ctor
-  void operator=(SmallShell const&)  = delete; // disable = operator
-  static SmallShell& getInstance() // make SmallShell singleton
-  {
-    static SmallShell instance; // Guaranteed to be destroyed.
-    // Instantiated on first use.
-    return instance;
-  }
-  ~SmallShell();
-  void executeCommand(const char* cmd_line);
-  void setPromptLine(const string new_prmp_line);
-  string getCurrDir();
-  void setCurrDir();
-  void printPromptLine() const ;
-  void printSmashId() const ;
+    string prompt = DEFAULT_PROMPT;
+    pid_t pid;
+    string curr_dir;
+    string prev_dir;
+    //pid_t curr_fg_pid;
+    //job_id curr_fg_job_id;
+public:
+    JobsList jobs_list;
+    CommandPtr CreateCommand(const char *cmd_line);
+    SmallShell(SmallShell const &) = delete; // disable copy ctor
+    void operator=(SmallShell const &) = delete; // disable = operator
+    static SmallShell &getInstance() // make SmallShell singleton
+    {
+        static SmallShell instance; // Guaranteed to be destroyed.
+        // Instantiated on first use.
+        return instance;
+    }
+    ~SmallShell();
+    void executeCommand(const char *cmd_line);
+    void setPromptLine(const string new_prmp_line);
+    string getCurrDir();
+    void setCurrDir();
+    void printPromptLine() const;
+    void printSmashId() const;
 };
 
 #endif //SMASH_COMMAND_H_
