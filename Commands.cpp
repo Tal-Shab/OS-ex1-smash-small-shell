@@ -900,7 +900,7 @@ TouchCommand::TouchCommand(const char *cmd_line) : BuiltInCommand(cmd_line), tim
 
     tm time_obj{ .tm_sec = date_parts[0], .tm_min = date_parts[1], .tm_hour = date_parts[2],
                 .tm_mday = date_parts[3], .tm_mon = date_parts[4] - 1, .tm_year = (date_parts[5] - 1900),
-                .tm_isdst = -1, .tm_gmtoff = 0 };
+                .tm_wday = 0, .tm_yday = 0, .tm_isdst = -1, .tm_gmtoff = 0 };
 
     this->timestamp = mktime(&time_obj);
     assert(this->timestamp != -1);
