@@ -369,11 +369,15 @@ CommandPtr SmallShell::CreateCommand(const char* cmd_line) {
     string cmd_s = _trim((cmd_line));
     string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" &\n"));
 
-    if (cmd_s.find_first_of(">") != string::npos) {
+    if (firstWord.empty()) {
+        return nullptr;
+    }
+
+    if (cmd_s.find_first_of('>') != string::npos) {
         return make_shared<RedirectionCommand>(cmd_line);
-    } /*else if (cmd_s.find_first_of("|") != string::npos) {
+    } else if (cmd_s.find_first_of('|') != string::npos) {
         return make_shared<PipeCommand>(cmd_line);
-    }*/ else if (firstWord == "chprompt") {
+    } else if (firstWord == "chprompt") {
         return make_shared<ChPromptCommand>(cmd_line);
     } else if (firstWord == "showpid") {
         return make_shared<ShowPidCommand>(cmd_line);
