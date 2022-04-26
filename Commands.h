@@ -75,7 +75,9 @@ public:
 };
 
 class PipeCommand : public Command {
-  // TODO: Add your data members
+    CommandPtr cmd_src;
+    CommandPtr cmd_dest;
+    int write_fd = STDOUT_FD;
 public:
     PipeCommand(const char* cmd_line);
     virtual ~PipeCommand() {}

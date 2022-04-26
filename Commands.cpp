@@ -391,11 +391,11 @@ CommandPtr SmallShell::CreateCommand(const char* cmd_line) {
         return make_shared<QuitCommand>(cmd_line, &(this->jobs_list));
     } else if (firstWord == "kill") {
         return make_shared<KillCommand>(cmd_line, &(this->jobs_list));
-    } else {
-        return make_shared<ExternalCommand>(cmd_line);
+    } else if (firstWord == "tail") {
+        return make_shared<TailCommand>(cmd_line);
     }
 
-    return nullptr;
+    return make_shared<ExternalCommand>(cmd_line);
 }
 
 void SmallShell::executeCommand(const char *cmd_line) {
@@ -637,41 +637,240 @@ pid_t ExternalCommand::execute() {
 
 RedirectionCommand::RedirectionCommand(const char* cmd_line):Command(cmd_line) {
     string str_cmd_line = string(cmd_line);
-    int index_of_sub = str_cmd_line.find(">");
-    if( str_cmd_line[index_of_sub+1] == '>') {
+    size_t index_of_sub = str_cmd_line.find('>');
+    if( str_cmd_line[index_of_sub+1] == '>') { // ">>" meaning append
         this->flag |= O_APPEND;
     }
-    else { 
+    else { // only ">"
         this->flag |=  O_TRUNC;
     }
-    int last_index = str_cmd_line.find_last_of(">");
+    size_t last_index = str_cmd_line.find_last_of('>');
     this->output_file = _trim(str_cmd_line.substr(last_index+1));
 
     SmallShell& smash = SmallShell::getInstance();
     this->cmd = smash.CreateCommand(_trim(str_cmd_line.substr(0,index_of_sub)).c_str());
+
+    this->is_BG = false;
+    this->cmd->is_BG = false;
 }
 
 pid_t RedirectionCommand::execute() {
     pid_t pid = fork();
     if(pid == 0) { 
         setpgrp();
-        if (-1 == close(1)) {
-            perror("smash error: close faild");
-            exit(-1);
-        }
-        if( -1 == open(this->output_file.c_str(), this->flag, S_IRUSR | S_IWUSR | S_IRGRP  | S_IROTH) ) { 
-            perror("smash error: open faild");
-            exit(-1);
-        } else {
-            this->cmd->execute();
-            if (-1 == close(1)) {
-                perror("smash error: close faild");
-                exit(-1);
+        try {
+            if (-1 == close(STDOUT_FD)) {
+                throw SmashSysFailure("close failed");
             }
-            exit(0);
+            if (-1 == open(this->output_file.c_str(), this->flag, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) {
+                throw SmashSysFailure("open failed");
+            }
+
+            this->cmd->execute();
+            if (-1 == close(STDOUT_FD)) {
+                throw SmashSysFailure("close failed");
+            }
         }
+        catch (SmashCmdError& err) {
+            cerr << err.what() << endl;
+            exit(1);
+        } catch (SmashSysFailure& err) {
+            perror(err.what());
+            exit(1);
+        }
+
+        exit(0);
+    } else if (pid < 0) {
+        throw SmashSysFailure("fork failed");
     } else {
         waitpid(pid, nullptr , 0);
     }
+    return DEFAULT_PROCESS_ID;
+}
+
+PipeCommand::PipeCommand(const char *cmd_line) : Command(cmd_line), write_fd(STDOUT_FD) {
+    string str_cmd_line = string(cmd_line);
+    size_t index_of_pipe = str_cmd_line.find('|');
+    size_t index_after_pipe = index_of_pipe + 1;
+    if( str_cmd_line[index_of_pipe+1] == '&') {
+        this->write_fd = STDERR_FD;
+        index_after_pipe += 1;
+    }
+
+    string src_cmd_line = _trim(str_cmd_line.substr(0, index_of_pipe));
+    string dest_cmd_line = _trim(str_cmd_line.substr(index_after_pipe));
+
+    SmallShell& smash = SmallShell::getInstance();
+    this->cmd_src = smash.CreateCommand(src_cmd_line.c_str());
+    this->cmd_dest = smash.CreateCommand(dest_cmd_line.c_str());
+
+    this->is_BG = false;
+    this->cmd_src->is_BG = false;
+    this->cmd_dest->is_BG = false;
+}
+
+void close_pipe(int fd[2]) {
+    if ( -1 == close(fd[0]) || -1 == close(fd[1]) ) {
+        throw SmashSysFailure("close failed");
+    }
+}
+
+pid_t PipeCommand::execute() {
+    int fd[2];
+    if ( -1 == pipe(fd) ) {
+        throw SmashSysFailure("pipe failed");
+    }
+
+    pid_t src_pid;
+    pid_t dest_pid;
+
+    // TODO check how to wait for both forked processes simultaneously
+    src_pid = fork();
+    if (src_pid == 0) {
+        setpgrp();
+        try {
+            if ( -1 == dup2(fd[STDOUT_FD], this->write_fd) ) {
+                throw SmashSysFailure("dup2 failed");
+            }
+            close_pipe(fd);
+            pid_t src_child = this->cmd_src->execute();
+            if (src_child != DEFAULT_PROCESS_ID) {
+                waitpid(src_child, nullptr, 0);
+            }
+        }
+        catch (SmashCmdError& err) {
+            cerr << err.what() << endl;
+            exit(1);
+        } catch (SmashSysFailure& err) {
+            perror(err.what());
+            exit(1);
+        }
+        exit(0);
+    } else if (src_pid < 0) {
+        throw SmashSysFailure("fork failed");
+    }
+
+    dest_pid = fork();
+    if (dest_pid == 0) {
+        setpgrp();
+        try {
+            if ( -1 == dup2(fd[STDIN_FD], STDIN_FD) ) {
+                throw SmashSysFailure("dup2 failed");
+            }
+
+            close_pipe(fd);
+            pid_t dest_child = this->cmd_dest->execute();
+            if (dest_child != DEFAULT_PROCESS_ID) {
+                waitpid(dest_child, nullptr, 0);
+            }
+        }
+        catch (SmashCmdError& err) {
+            cerr << err.what() << endl;
+            exit(1);
+        } catch (SmashSysFailure& err) {
+            perror(err.what());
+            exit(1);
+        }
+        exit(0);
+    } else if (dest_pid < 0) {
+        throw SmashSysFailure("fork failed");
+        // TODO check if first fork succeeded and kill it if necessary (only if TA says we should do this)
+    }
+
+    close_pipe(fd);
+
+    bool src_fin = false, dest_fin = false;
+    while (!src_fin || !dest_fin) {
+        src_fin = src_fin || (waitpid(src_pid, nullptr, WNOHANG) == src_pid);
+        dest_fin = dest_fin || (waitpid(dest_pid, nullptr, WNOHANG) == dest_pid);
+    }
+
+    return DEFAULT_PROCESS_ID;
+}
+
+TailCommand::TailCommand(const char *cmd_line) : BuiltInCommand(cmd_line), line_count(DEFAULT_TAIL_COUNT) {
+    if (this->n_args > 3 || this->n_args <= 1) {
+        throw SmashCmdError("tail: invalid arguments");
+    }
+
+    if (n_args == 3) {
+        if (!_isnumber(this->args[1]+1)) {
+            throw SmashCmdError("tail: invalid arguments");
+        }
+
+        this->line_count = (int)stoul(this->args[1]+1);
+        this->filename = this->args[2];
+    }
+
+    if (n_args == 2) {
+        this->filename = this->args[1];
+    }
+}
+
+off_t findLastLinesPos(int fd, int line_count) {
+    char buff[BUFFER_SIZE];
+    ssize_t rbytes;
+    off_t pos = lseek(fd, 0, SEEK_END);
+    if (pos == -1) {
+        throw SmashSysFailure("lseek failed");
+    }
+
+    size_t bytes_to_read;
+    while (pos > 0) {
+        if (pos - BUFFER_SIZE >= 0) {
+            bytes_to_read = BUFFER_SIZE;
+            pos = lseek(fd, pos - BUFFER_SIZE, SEEK_SET);
+        } else {
+            bytes_to_read = pos;
+            pos = lseek(fd, 0, SEEK_SET);
+        }
+        if (pos == -1) {
+            throw SmashSysFailure("lseek failed");
+        }
+        // we assume that read reads the whole BUFFER_SIZE bytes, if not - how should we handle that? try again? loop? ignore? TODO ask TA
+        rbytes = read(fd, buff, bytes_to_read);
+        if (rbytes == -1) {
+            throw SmashSysFailure("read failed");
+        }
+        for (int i = ((int)rbytes - 1); i >= 0; i--) {
+            if (buff[i] == '\n') {
+                line_count -= 1;
+                if (line_count == 0) {
+                    return pos + i + 1; // pos + i is the exact position of the newline in the file, so we want the next char
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+pid_t TailCommand::execute() {
+    int fd = open(this->filename, O_RDONLY);
+    if (-1 == fd) {
+        throw SmashSysFailure("open failed");
+    }
+
+    off_t pos = findLastLinesPos(fd, this->line_count);
+    if (-1 == lseek(fd, pos, SEEK_SET)) {
+        throw SmashSysFailure("lseek failed");
+    }
+    char buff[BUFFER_SIZE];
+    ssize_t rbytes = -1;
+    while (rbytes != 0) {
+        rbytes = read(fd, buff, BUFFER_SIZE); // TODO what if rbytes < BUFFER_SIZE ?
+        if (rbytes == -1) {
+            throw SmashSysFailure("read failed");
+        }
+
+        if (-1 == write(STDOUT_FD, buff, rbytes)) { // TODO what if we wrote less than rbytes?
+            throw SmashSysFailure("write failed");
+        }
+    }
+
+    if (-1 == close(fd)) {
+        throw SmashSysFailure("close failed");
+    }
+
     return DEFAULT_PROCESS_ID;
 }
