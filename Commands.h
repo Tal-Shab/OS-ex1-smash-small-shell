@@ -17,6 +17,11 @@
 #define ERROR_PREFIX "smash error: "
 #define DEFAULT_JOB_ID (-1)
 #define DEFAULT_PROCESS_ID (-1)
+#define STDIN_FD (0)
+#define STDOUT_FD (1)
+#define STDERR_FD (2)
+#define DEFAULT_TAIL_COUNT (10)
+#define BUFFER_SIZE (20)
 
 typedef int job_id;
 enum JOB_STATUS {UNFINISHED, STOPPED};
