@@ -79,9 +79,6 @@ void _removeBackgroundSign(char* cmd_line) {
   cmd_line[str.find_last_not_of(WHITESPACE, idx) + 1] = 0;
 }
 
-// TODO: Add your implementation for classes in Commands.h
-
-
 ////////////////////Command Class start//////////////////////////////////////
 
 Command::Command(const char* cmd_line){
@@ -344,7 +341,7 @@ void SmallShell::setPromptLine(const string new_prmp_line){
 }
 
 void SmallShell::printPromptLine() const{
-   cout << this->prompt << "> ";  //////TODO - remember maybe no space
+   cout << this->prompt << "> ";
 }
 
 void SmallShell::printSmashId() const{
@@ -557,8 +554,8 @@ void JobsList::printJobsList() {
 }
 
 void JobsList::updateCurrFGJob(pid_t pid, CommandPtr cmd, job_id jobId) {
+//    assert(this->curr_FG_job == nullptr);
     JobEntry entry = make_shared<JobEntry_t>(jobId, 0, pid, cmd, UNFINISHED);
-    ///TODO assert this->curr_FG_job==nullptr 
     this->curr_FG_job = entry;
 }
 
@@ -731,7 +728,6 @@ pid_t PipeCommand::execute() {
     pid_t src_pid;
     pid_t dest_pid;
 
-    // TODO check how to wait for both forked processes simultaneously
     src_pid = fork();
     if (src_pid == 0) {
         setpgrp();
@@ -903,7 +899,7 @@ TouchCommand::TouchCommand(const char *cmd_line) : BuiltInCommand(cmd_line), tim
                 .tm_wday = 0, .tm_yday = 0, .tm_isdst = -1, .tm_gmtoff = 0 };
 
     this->timestamp = mktime(&time_obj);
-    assert(this->timestamp != -1);
+//    assert(this->timestamp != -1);
 }
 
 pid_t TouchCommand::execute() {

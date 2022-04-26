@@ -160,7 +160,6 @@ public:
     void resetCurrFGJob();
     void killCurrFGJob();
     void stopCurrFGJob();
-    ///function that move the curr FG_JOB inside the job list TODO
 private:
     std::map<pid_t, job_id> proc_to_job_id;
     std::map<job_id, JobEntry > jobs_list;
