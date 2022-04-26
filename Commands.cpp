@@ -7,6 +7,7 @@
 #include <utime.h>
 #include <climits>
 #include <cstdlib>
+#include <cassert>
 
 using namespace std;
 
@@ -397,6 +398,8 @@ CommandPtr SmallShell::CreateCommand(const char* cmd_line) {
         return make_shared<KillCommand>(cmd_line, &(this->jobs_list));
     } else if (firstWord == "tail") {
         return make_shared<TailCommand>(cmd_line);
+    } else if (firstWord == "touch") {
+        return make_shared<TouchCommand>(cmd_line);
     }
 
     return make_shared<ExternalCommand>(cmd_line);
@@ -874,6 +877,39 @@ pid_t TailCommand::execute() {
 
     if (-1 == close(fd)) {
         throw SmashSysFailure("close failed");
+    }
+
+    return DEFAULT_PROCESS_ID;
+}
+
+TouchCommand::TouchCommand(const char *cmd_line) : BuiltInCommand(cmd_line), timestamp() {
+    if (n_args != 3) {
+        throw SmashCmdError("touch: invalid arguments");
+    }
+
+    this->filename = this->args[1];
+    string time_str(this->args[2]);
+
+    int date_parts[6];
+    size_t pos = 0;
+    for (int i=0; i < 6; i++) {
+        pos = time_str.find_first_of(':');
+        date_parts[i] = (int)stoul(time_str.substr(0,pos));
+        time_str = time_str.substr(pos+1);
+    }
+
+    tm time_obj{ .tm_sec = date_parts[0], .tm_min = date_parts[1], .tm_hour = date_parts[2],
+                .tm_mday = date_parts[3], .tm_mon = date_parts[4] - 1, .tm_year = (date_parts[5] - 1900),
+                .tm_isdst = -1, .tm_gmtoff = 0 };
+
+    this->timestamp = mktime(&time_obj);
+    assert(this->timestamp != -1);
+}
+
+pid_t TouchCommand::execute() {
+    utimbuf times{ .actime = this->timestamp, .modtime = this->timestamp };
+    if ( -1 == utime(this->filename, &times) ) {
+        throw SmashSysFailure("utime failed");
     }
 
     return DEFAULT_PROCESS_ID;

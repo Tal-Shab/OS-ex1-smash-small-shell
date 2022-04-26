@@ -213,6 +213,8 @@ public:
 };
 
 class TouchCommand : public BuiltInCommand {
+    time_t timestamp;
+    char* filename;
 public:
     TouchCommand(const char* cmd_line);
     virtual ~TouchCommand() {}
