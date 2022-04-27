@@ -819,6 +819,9 @@ off_t findLastLinesPos(int fd, int line_count) {
     }
 
     size_t bytes_to_read;
+    // We want to see line_count newline chars ('\n') regardless of the last char in the file -
+    // we don't care whether the last char is a newline, because we need to get line_count lines
+    pos -= 1;
     while (pos > 0) {
         if (pos - BUFFER_SIZE >= 0) {
             bytes_to_read = BUFFER_SIZE;
