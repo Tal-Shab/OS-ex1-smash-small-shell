@@ -797,7 +797,10 @@ TailCommand::TailCommand(const char *cmd_line) : BuiltInCommand(cmd_line), line_
     }
 
     if (n_args == 3) {
-        if (!_isnumber(this->args[1]+1)) {
+        if(*(this->args[1]) != '-'){
+            throw SmashCmdError("tail: invalid arguments");
+        }
+        else if (!_isnumber(this->args[1]+1)) {
             throw SmashCmdError("tail: invalid arguments");
         }
 
