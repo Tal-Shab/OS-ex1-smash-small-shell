@@ -855,6 +855,11 @@ off_t findLastLinesPos(int fd, int line_count) {
 }
 
 pid_t TailCommand::execute() {
+    
+    if (this->line_count == 0) {
+        return DEFAULT_PROCESS_ID;
+    }
+    
     int fd = open(this->filename, O_RDONLY);
     if (-1 == fd) {
         throw SmashSysFailure("open failed");
