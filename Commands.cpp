@@ -190,17 +190,36 @@ bool _isnumber(char* str) {
     return true;
 }
 
+bool _getnumber (char* str, int* num) {
+    int sign = 1;
+    if (*str == '-') {
+        str += 1;
+        sign = -1;
+    }
+    if (_isnumber(str)) {
+        if ( -1 == sign) { //by our design, we know we wont have any negative number as out job_id
+            *num = -1; 
+        }
+        else {
+            *num = (int)stoul(str);
+        }
+        return IS_NUMBER;
+    }
+    else { //not a number
+        return !IS_NUMBER;
+    }
+}
+
 ForegroundCommand::ForegroundCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line), jobs_list(jobs) {
     if (this->n_args > 2) {
         throw SmashCmdError("fg: invalid arguments");
     }
 
     if (this->n_args == 2) {
-        if (_isnumber(this->args[1])) {
-            this->dest_jid = (job_id)stoul(this->args[1]);
-        } else {
+        if ( !IS_NUMBER == _getnumber(args[1], &( this->dest_jid)) )
             throw SmashCmdError("fg: invalid arguments");
-        }
+        if ( this->dest_jid < 0) 
+            throw SmashCmdError("fg: job-id " + string(args[1]) + " does not exist");
     } else {
         this->dest_jid = DEFAULT_JOB_ID;
     }
@@ -243,11 +262,10 @@ BackgroundCommand::BackgroundCommand(const char *cmd_line, JobsList *jobs) : Bui
     }
 
     if (this->n_args == 2) {
-        if (_isnumber(this->args[1])) {
-            this->dest_jid = (job_id)stoul(this->args[1]);
-        } else {
+        if ( !IS_NUMBER == _getnumber(args[1], &( this->dest_jid)) )
             throw SmashCmdError("bg: invalid arguments");
-        }
+        if ( this->dest_jid < 0) 
+            throw SmashCmdError("bg: job-id " + string(args[1]) + " does not exist");
     } else {
         this->dest_jid = DEFAULT_JOB_ID;
     }
