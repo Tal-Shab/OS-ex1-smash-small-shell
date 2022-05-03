@@ -738,7 +738,7 @@ pid_t PipeCommand::execute() {
             close_pipe(fd);
             pid_t src_child = this->cmd_src->execute();
             if (src_child != DEFAULT_PROCESS_ID) {
-                waitpid(src_child, nullptr, 0);
+                waitpid(src_child, nullptr, WUNTRACED);
             }
         }
         catch (SmashCmdError& err) {
@@ -764,7 +764,7 @@ pid_t PipeCommand::execute() {
             close_pipe(fd);
             pid_t dest_child = this->cmd_dest->execute();
             if (dest_child != DEFAULT_PROCESS_ID) {
-                waitpid(dest_child, nullptr, 0);
+                waitpid(dest_child, nullptr, WUNTRACED);
             }
         }
         catch (SmashCmdError& err) {
