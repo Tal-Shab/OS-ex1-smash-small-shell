@@ -225,6 +225,7 @@ ForegroundCommand::ForegroundCommand(const char *cmd_line, JobsList *jobs) : Bui
     }
 }
 
+
 pid_t ForegroundCommand::execute() {
     this->jobs_list->removeFinishedJobs();
 
@@ -831,6 +832,45 @@ TailCommand::TailCommand(const char *cmd_line) : BuiltInCommand(cmd_line), line_
     }
 }
 
+ssize_t _fullread ( int fd, char *buff, size_t nbytes ) {
+    ssize_t rbytes = 1;
+    ssize_t sum_rbytes = 0;
+
+    while ( rbytes != 0 )
+    {
+        rbytes = read(fd, buff, nbytes);
+        if ( -1 == rbytes ) {
+            if ( errno == EINTR )
+                continue;
+            return -1;
+        }
+        nbytes -= rbytes;
+        buff += rbytes;
+        sum_rbytes += rbytes;
+    }
+    return sum_rbytes;
+}
+
+ssize_t _fullwrite( int fd, char *buff, size_t nbytes) {
+    ssize_t wbytes = 0;
+    ssize_t sum_wbytes = 0;
+
+    while ( nbytes > 0 )
+    {
+        wbytes = write(fd, buff, nbytes);
+        if ( -1 == wbytes ) {
+            if ( errno == EINTR )
+                continue;
+            return -1;
+        }
+        nbytes -= wbytes;
+        buff += wbytes;
+        sum_wbytes += wbytes;
+    }
+    return sum_wbytes;
+}
+
+
 off_t findLastLinesPos(int fd, int line_count) {
     char buff[BUFFER_SIZE];
     ssize_t rbytes;
@@ -855,7 +895,7 @@ off_t findLastLinesPos(int fd, int line_count) {
             throw SmashSysFailure("lseek failed");
         }
         // we assume that read reads the whole BUFFER_SIZE bytes, if not - how should we handle that? try again? loop? ignore? TODO ask TA
-        rbytes = read(fd, buff, bytes_to_read);
+        rbytes = _fullread(fd, buff, bytes_to_read);
         if (rbytes == -1) {
             throw SmashSysFailure("read failed");
         }
@@ -890,12 +930,12 @@ pid_t TailCommand::execute() {
     char buff[BUFFER_SIZE];
     ssize_t rbytes = -1;
     while (rbytes != 0) {
-        rbytes = read(fd, buff, BUFFER_SIZE); // TODO what if rbytes < BUFFER_SIZE ?
+        rbytes = _fullread(fd, buff, BUFFER_SIZE);
         if (rbytes == -1) {
             throw SmashSysFailure("read failed");
         }
 
-        if (-1 == write(STDOUT_FD, buff, rbytes)) { // TODO what if we wrote less than rbytes?
+        if (-1 == _fullwrite(STDOUT_FD, buff, rbytes)) {
             throw SmashSysFailure("write failed");
         }
     }

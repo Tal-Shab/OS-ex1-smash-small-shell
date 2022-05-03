@@ -22,6 +22,7 @@
 #define STDERR_FD (2)
 #define DEFAULT_TAIL_COUNT (10)
 #define BUFFER_SIZE (20)
+#define IS_NUMBER true
 
 typedef int job_id;
 enum JOB_STATUS {UNFINISHED, STOPPED};
