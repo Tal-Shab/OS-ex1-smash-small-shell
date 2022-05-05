@@ -79,6 +79,18 @@ void _removeBackgroundSign(char* cmd_line) {
   cmd_line[str.find_last_not_of(WHITESPACE, idx) + 1] = 0;
 }
 
+double calcDiffTimeParam( time_t timestamp ) {
+    time_t curr_timestamp = time(nullptr);
+    if (curr_timestamp == ((time_t) -1))
+        throw SmashSysFailure("time failed");
+
+    return ( difftime(curr_timestamp, timestamp) );
+}
+
+double calcDiffTimeRemaining( time_t timestamp ) {
+    return (-1 * calcDiffTimeParam(timestamp));
+}
+
 ////////////////////Command Class start//////////////////////////////////////
 
 Command::Command(const char* cmd_line){
@@ -416,6 +428,8 @@ CommandPtr SmallShell::CreateCommand(const char* cmd_line) {
         return make_shared<TailCommand>(cmd_line);
     } else if (firstWord == "touch") {
         return make_shared<TouchCommand>(cmd_line);
+    } else if (firstWord == "timeout") {
+        return make_shared<AlarmCommand>(cmd_line, &(this->time_out_manager));
     }
 
     return make_shared<ExternalCommand>(cmd_line);
@@ -464,17 +478,13 @@ const char* SmashError::what() const noexcept {
 
 //////////////////////Job Entry start///////////////////////
 double JobsList::JobEntry_t::calcDiffTime() {
-    time_t curr_timestamp = time(nullptr);
-    if (curr_timestamp == ((time_t) -1))
-        throw SmashSysFailure("time failed");
-
-    return ( difftime(curr_timestamp, this->timestamp) );
+    return ( calcDiffTimeParam (this->timestamp) );
 }
 //////////////////////Job Entry end///////////////////////
 
 
 
-//////////////////Job List start////////////////////////////
+//////////////////Jobs List start////////////////////////////
 
 JobsList::JobEntry JobsList::getJobByJobId(job_id jobId) {
     auto map_elem = this->jobs_list.find(jobId);
@@ -620,6 +630,14 @@ void JobsList::stopCurrFGJob() {
     cout << MSG_PREFIX << "process " << job->pid << " was stopped" << endl;
     resetCurrFGJob();
 }
+
+CommandPtr JobsList::getCmdForPID(pid_t pid_to_check) {
+    if (this->curr_FG_job != nullptr && this->curr_FG_job->pid == pid_to_check)
+        return this->curr_FG_job->cmd;
+    
+    return ( this->getJobByProcessId(pid_to_check)->cmd );
+}
+
 //////////////////Jobs List end////////////////////////////
 
 
@@ -979,3 +997,92 @@ pid_t TouchCommand::execute() {
 
     return DEFAULT_PROCESS_ID;
 }
+
+
+///////////////////TimeOutManager start//////////////////////////
+
+bool TimeOutManager::TimeOutEntry::operator< (TimeOutEntry const &obj) {
+    /*a < b if a.end > b.end -> true 
+    if a.end == b.end 
+        a < b if a.start > b.start -> true */
+
+    if ( this->end_timestamp > obj.end_timestamp ) {
+        return true;
+    }
+    else if( this->end_timestamp == obj.end_timestamp && this->start_timestamp > obj.start_timestamp ) {
+        return true;
+    }
+    return false;
+}
+
+void TimeOutManager::SetAlarm(pid_t pid_to_insert, time_t duration) {
+    time_t curr_time = time(nullptr);
+    if (curr_time == ((time_t) -1)) {
+        throw SmashSysFailure("time failed");
+    }
+
+    TimeOutEntry curr(pid_to_insert, curr_time, curr_time + duration);
+    if ( time_out_heap.empty() || time_out_heap[0] < curr ) {
+        alarm(duration);
+    }
+    time_out_heap.push_back(curr);
+    std::push_heap(time_out_heap.begin(), time_out_heap.end());
+}
+
+
+
+///////////////////TimeOutManager end//////////////////////////
+
+AlarmCommand::AlarmCommand(const char* cmd_line , TimeOutManager* time_out_manager) : Command(cmd_line) ,
+                                                                                     time_out_manager(time_out_manager){
+    if (this->n_args < 3) {
+        throw SmashCmdError("timeout: invalid arguments");
+    }
+    int num = 0;
+    if ( _getnumber(args[1] , &num) != IS_NUMBER || num <= 0  ) {
+        throw SmashCmdError("timeout: invalid arguments");
+    }
+    
+    this->duration = num;
+
+    size_t index_of_sub = string(cmd_line).find(args[2]);
+    string sub_string = string(cmd_line).substr(index_of_sub);
+
+    SmallShell& smash = SmallShell::getInstance();
+    this->cmd = smash.CreateCommand(_trim(sub_string).c_str());
+    this->is_BG = this->cmd->is_BG; //just in case, should be the same
+}
+
+
+pid_t AlarmCommand::execute() {
+    pid_t inner_command_pid = this->cmd->execute();
+    this->time_out_manager->SetAlarm(inner_command_pid, this->duration);
+    return inner_command_pid; //should be pid of an external command
+}
+
+
+
+void TimeOutManager::SetNextAlarm() {
+
+    if ( this->time_out_heap.empty() ) {
+        alarm(0); //will cancel all previous alarms
+    }
+    double diff = calcDiffTimeRemaining(this->time_out_heap[0].end_timestamp); 
+    alarm(int(ceil(diff)));/////maybe a lot more complicated than this. TODO
+}
+
+pid_t TimeOutManager::RemoveTimedOut() {
+    if (this->time_out_heap.empty())
+        return DEFAULT_PROCESS_ID;
+
+    pid_t pid_to_retrun = DEFAULT_PROCESS_ID;
+
+    if ( calcDiffTimeRemaining(this->time_out_heap[0].end_timestamp) < ALARM_THRESHOLD ){
+        pop_heap(time_out_heap.begin() , time_out_heap.end()); //moves the largest to the end
+        pid_to_retrun = time_out_heap.back().pid;
+        time_out_heap.pop_back();
+    }
+    return pid_to_retrun;
+}
+
+

@@ -1,6 +1,7 @@
 #ifndef SMASH_COMMAND_H_
 #define SMASH_COMMAND_H_
 
+#include <algorithm> //for heap
 #include <vector>
 #include <ctime>
 #include <map>
@@ -9,6 +10,8 @@
 #include <ctime>
 #include <memory>
 #include <fcntl.h>
+#include <math.h> 
+
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
@@ -23,11 +26,16 @@
 #define DEFAULT_TAIL_COUNT (10)
 #define BUFFER_SIZE (20)
 #define IS_NUMBER true
+#define ALARM_THRESHOLD (0.5)
 
 typedef int job_id;
 enum JOB_STATUS {UNFINISHED, STOPPED};
 
 using std::string;
+
+
+class JobsList;
+class TimeOutManager; 
 
 class SmashError : public std::exception {
     const string msg;
@@ -56,7 +64,7 @@ public:
     bool is_BG;
     explicit Command(const char* cmd_line);
     virtual ~Command();
-    virtual pid_t execute() = 0; //will return true is job finished. else false.
+    virtual pid_t execute() = 0;
     friend std::ostream& operator<<(std::ostream& os, const Command& cm);
 };
 
@@ -74,6 +82,18 @@ public:
     virtual ~ExternalCommand() {}
     pid_t execute() override;
 };
+
+/*TimeOutCommand*/
+class AlarmCommand : public Command {
+    CommandPtr cmd;
+    time_t duration;
+    TimeOutManager* time_out_manager;
+public:
+    explicit AlarmCommand(const char* cmd_line, TimeOutManager* time_out_manager);
+    virtual ~AlarmCommand() {}
+    pid_t execute() override;
+};
+
 
 class PipeCommand : public Command {
     CommandPtr cmd_src;
@@ -117,7 +137,6 @@ public:
     pid_t execute() override;
 };
 
-class JobsList;
 class QuitCommand : public BuiltInCommand {
     JobsList* jobs;
     bool kill;
@@ -161,10 +180,32 @@ public:
     void resetCurrFGJob();
     void killCurrFGJob();
     void stopCurrFGJob();
+    CommandPtr getCmdForPID( pid_t pid);
 private:
     std::map<pid_t, job_id> proc_to_job_id;
     std::map<job_id, JobEntry > jobs_list;
     JobEntry curr_FG_job;
+};
+
+class TimeOutManager {
+private:
+    class TimeOutEntry{
+    public:
+        pid_t pid;
+        time_t start_timestamp;
+        time_t end_timestamp;
+
+        TimeOutEntry(pid_t pid, time_t start_timestamp, time_t end_timestamp) : pid(pid) , 
+                                                                                start_timestamp(start_timestamp) , 
+                                                                                end_timestamp(end_timestamp){}
+
+        bool operator< (TimeOutEntry const &obj);
+    };
+    std::vector<TimeOutEntry> time_out_heap;
+public:
+    pid_t RemoveTimedOut();
+    void SetAlarm(pid_t pid_to_insert, time_t duration);
+    void SetNextAlarm();
 };
 
 class JobsCommand : public BuiltInCommand {
@@ -241,6 +282,7 @@ private:
     //job_id curr_fg_job_id;
 public:
     JobsList jobs_list;
+    TimeOutManager time_out_manager;
     CommandPtr CreateCommand(const char *cmd_line);
     SmallShell(SmallShell const &) = delete; // disable copy ctor
     void operator=(SmallShell const &) = delete; // disable = operator
