@@ -706,7 +706,7 @@ pid_t RedirectionCommand::execute() {
             if (-1 == close(STDOUT_FD)) {
                 throw SmashSysFailure("close failed");
             }
-            if (-1 == open(this->output_file.c_str(), this->flag, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) {
+            if (-1 == open(this->output_file.c_str(), this->flag, S_IRUSR|S_IWUSR|S_IRGRP|S_IXGRP|S_IROTH|S_IXUSR)) {
                 throw SmashSysFailure("open failed");
             }
 
