@@ -341,6 +341,9 @@ pid_t KillCommand::execute() {
     }
 
     if ( kill(job->pid, this->sig_num) == -1 ) {
+        if (errno == EINVAL) {
+            throw SmashCmdError("kill: invalid arguments");
+        }
         throw SmashSysFailure("kill failed");
     }
 
