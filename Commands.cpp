@@ -193,6 +193,8 @@ pid_t JobsCommand::execute() {
 }
 
 bool _isnumber(char* str) {
+    if (str == nullptr || *str == '\0') //if the input to the function was an empty word
+        return false;
     for (; *str != '\0'; str++) {
         if (isdigit(*str) == false) {
             return false;
@@ -325,12 +327,15 @@ pid_t QuitCommand::execute() {
 }
 
 KillCommand::KillCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line), jobs(jobs){
-    if (this->n_args != 3 || args[1][0] != '-' || !_isnumber(this->args[1]+1) || !_isnumber(this->args[2])) {
+    if ( this->n_args != 3 || args[1][0] != '-' || !_isnumber(this->args[1]+1) || 
+        !IS_NUMBER == _getnumber( args[2],&(this->dest_jid) ) ) {
         throw SmashCmdError("kill: invalid arguments");
     }
+    if ( this->dest_jid < 0) //ars[2] = -num, but we know that negative job id is not possible
+        throw SmashCmdError("kill: job-id " +  string(args[2]) + " does not exist");
 
     this->sig_num = (int)stoul(this->args[1]+1);
-    this->dest_jid = (job_id)stoul(this->args[2]);
+    //this->dest_jid = (job_id)stoul(this->args[2]); //redundant
 }
 
 pid_t KillCommand::execute() {
