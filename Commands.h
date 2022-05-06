@@ -106,7 +106,8 @@ public:
 };
 
 class RedirectionCommand : public Command {
-    CommandPtr cmd;
+//    CommandPtr cmd;
+    string inner_cmd_line;
     string output_file;
     int flag = O_CREAT | O_WRONLY;
  public:

@@ -696,11 +696,12 @@ RedirectionCommand::RedirectionCommand(const char* cmd_line):Command(cmd_line) {
     size_t last_index = str_cmd_line.find_last_of('>');
     this->output_file = _trim(str_cmd_line.substr(last_index+1));
 
-    SmallShell& smash = SmallShell::getInstance();
-    this->cmd = smash.CreateCommand(_trim(str_cmd_line.substr(0,index_of_sub)).c_str());
+//    SmallShell& smash = SmallShell::getInstance();
+    this->inner_cmd_line = _trim(str_cmd_line.substr(0,index_of_sub));
+//    this->cmd = smash.CreateCommand(_trim(str_cmd_line.substr(0,index_of_sub)).c_str());
 
     this->is_BG = false;
-    this->cmd->is_BG = false;
+//    this->cmd->is_BG = false;
 }
 
 pid_t RedirectionCommand::execute() {
@@ -715,7 +716,13 @@ pid_t RedirectionCommand::execute() {
                 throw SmashSysFailure("open failed");
             }
 
-            this->cmd->execute();
+            SmallShell& smash = SmallShell::getInstance();
+            CommandPtr cmd = smash.CreateCommand(this->inner_cmd_line.c_str());
+            if (cmd != nullptr) {
+                cmd->is_BG = false;
+                cmd->execute();
+            }
+//            this->cmd->execute();
             if (-1 == close(STDOUT_FD)) {
                 throw SmashSysFailure("close failed");
             }
