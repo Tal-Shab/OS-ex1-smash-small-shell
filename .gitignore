@@ -4,6 +4,8 @@ build/
 .idea/
 cmake-build-debug/
 
+/tests/
+
 # our exec file
 smash
 
