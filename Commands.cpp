@@ -720,7 +720,10 @@ pid_t RedirectionCommand::execute() {
             CommandPtr cmd = smash.CreateCommand(this->inner_cmd_line.c_str());
             if (cmd != nullptr) {
                 cmd->is_BG = false;
-                cmd->execute();
+                pid_t child_pid = cmd->execute();
+                if (child_pid != DEFAULT_PROCESS_ID) {
+                    waitpid(child_pid, nullptr, WUNTRACED);
+                }
             }
 //            this->cmd->execute();
             if (-1 == close(STDOUT_FD)) {
