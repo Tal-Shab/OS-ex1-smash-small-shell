@@ -282,6 +282,7 @@ private:
     //pid_t curr_fg_pid;
     //job_id curr_fg_job_id;
 public:
+    bool quit = false;
     JobsList jobs_list;
     TimeOutManager time_out_manager;
     CommandPtr CreateCommand(const char *cmd_line);
@@ -292,6 +293,10 @@ public:
         static SmallShell instance; // Guaranteed to be destroyed.
         // Instantiated on first use.
         return instance;
+    }
+    static void quitSmash() {
+        SmallShell& smash = getInstance();
+        smash.quit = true;
     }
     ~SmallShell();
     void executeCommand(const char *cmd_line);
