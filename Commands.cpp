@@ -323,7 +323,9 @@ pid_t QuitCommand::execute() {
         this->jobs->killAllJobs();
     }
 
-    exit(0);
+    SmallShell::quitSmash();
+    return DEFAULT_PROCESS_ID;
+//    exit(0);
 }
 
 KillCommand::KillCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line), jobs(jobs){
