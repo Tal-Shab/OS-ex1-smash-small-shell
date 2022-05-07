@@ -193,6 +193,8 @@ pid_t JobsCommand::execute() {
 }
 
 bool _isnumber(char* str) {
+    if (str == nullptr || *str == '\0') //if the input to the function was an empty word
+        return false;
     for (; *str != '\0'; str++) {
         if (isdigit(*str) == false) {
             return false;
@@ -325,12 +327,15 @@ pid_t QuitCommand::execute() {
 }
 
 KillCommand::KillCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line), jobs(jobs){
-    if (this->n_args != 3 || args[1][0] != '-' || !_isnumber(this->args[1]+1) || !_isnumber(this->args[2])) {
+    if ( this->n_args != 3 || args[1][0] != '-' || !_isnumber(this->args[1]+1) || 
+        !IS_NUMBER == _getnumber( args[2],&(this->dest_jid) ) ) {
         throw SmashCmdError("kill: invalid arguments");
     }
+    if ( this->dest_jid < 0) //ars[2] = -num, but we know that negative job id is not possible
+        throw SmashCmdError("kill: job-id " +  string(args[2]) + " does not exist");
 
     this->sig_num = (int)stoul(this->args[1]+1);
-    this->dest_jid = (job_id)stoul(this->args[2]);
+    //this->dest_jid = (job_id)stoul(this->args[2]); //redundant
 }
 
 pid_t KillCommand::execute() {
@@ -341,6 +346,9 @@ pid_t KillCommand::execute() {
     }
 
     if ( kill(job->pid, this->sig_num) == -1 ) {
+        if (errno == EINVAL) {
+            throw SmashCmdError("kill: invalid arguments");
+        }
         throw SmashSysFailure("kill failed");
     }
 
@@ -688,11 +696,12 @@ RedirectionCommand::RedirectionCommand(const char* cmd_line):Command(cmd_line) {
     size_t last_index = str_cmd_line.find_last_of('>');
     this->output_file = _trim(str_cmd_line.substr(last_index+1));
 
-    SmallShell& smash = SmallShell::getInstance();
-    this->cmd = smash.CreateCommand(_trim(str_cmd_line.substr(0,index_of_sub)).c_str());
+//    SmallShell& smash = SmallShell::getInstance();
+    this->inner_cmd_line = _trim(str_cmd_line.substr(0,index_of_sub));
+//    this->cmd = smash.CreateCommand(_trim(str_cmd_line.substr(0,index_of_sub)).c_str());
 
     this->is_BG = false;
-    this->cmd->is_BG = false;
+//    this->cmd->is_BG = false;
 }
 
 pid_t RedirectionCommand::execute() {
@@ -703,11 +712,20 @@ pid_t RedirectionCommand::execute() {
             if (-1 == close(STDOUT_FD)) {
                 throw SmashSysFailure("close failed");
             }
-            if (-1 == open(this->output_file.c_str(), this->flag, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) {
+            if (-1 == open(this->output_file.c_str(), this->flag, S_IRUSR|S_IWUSR|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH)) {
                 throw SmashSysFailure("open failed");
             }
 
-            this->cmd->execute();
+            SmallShell& smash = SmallShell::getInstance();
+            CommandPtr cmd = smash.CreateCommand(this->inner_cmd_line.c_str());
+            if (cmd != nullptr) {
+                cmd->is_BG = false;
+                pid_t child_pid = cmd->execute();
+                if (child_pid != DEFAULT_PROCESS_ID) {
+                    waitpid(child_pid, nullptr, WUNTRACED);
+                }
+            }
+//            this->cmd->execute();
             if (-1 == close(STDOUT_FD)) {
                 throw SmashSysFailure("close failed");
             }
